@@ -1,5 +1,11 @@
 # gostack
 
+[![CI](https://github.com/gos0001/gostack/actions/workflows/ci.yml/badge.svg)](https://github.com/gos0001/gostack/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/gos0001/gostack?sort=semver)](https://github.com/gos0001/gostack/releases/latest)
+[![Go Reference](https://pkg.go.dev/badge/github.com/gos0001/gostack.svg)](https://pkg.go.dev/github.com/gos0001/gostack)
+[![Go Report Card](https://goreportcard.com/badge/github.com/gos0001/gostack)](https://goreportcard.com/report/github.com/gos0001/gostack)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A scaffolding CLI for fullstack Go, in the spirit of the NestJS CLI. It generates a
 project laid out as vertical slices — one package per use case — with wire for DI,
 sqlc for Postgres, and server-rendered pages driven by HTMX.

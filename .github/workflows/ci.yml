@@ -1,0 +1,176 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: vet, fmt, tidy, shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # go-version-file tracks the go directive in go.mod, so bumping the
+      # toolchain requirement is a one-line change there and not here too.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "not gofmt-clean:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      # An untidy go.mod/go.sum builds fine locally and fails for anyone running
+      # `go install ...@latest`, because the proxy verifies against the module's
+      # own go.sum. Catch it here instead of in a user's terminal.
+      - name: go mod tidy is a no-op
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
+      # install.sh is POSIX sh on purpose: piping into `sh` lands in dash on
+      # Debian. -s sh is what actually enforces that, not the shebang.
+      - name: shellcheck install.sh
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          sh -n install.sh
+          shellcheck -s sh install.sh
+
+  e2e:
+    name: generate ${{ matrix.shape }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shape: fullstack
+            flags: --fullstack --postgres --redis --docker
+            frontend: "true"
+          - shape: api-only
+            flags: --api-only
+            frontend: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # PostGenProject installs wire, sqlc and air with `go install`. The CLI's
+      # own lookTool would find them under GOPATH/bin anyway, but the generated
+      # Makefile invokes them by bare name, so put the directory on PATH.
+      - run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      # THE point of this job. `go install` builds from the module proxy zip,
+      # which contains git-tracked files only, while a local `go build` reads
+      # the working tree. A template that is untracked or gitignored therefore
+      # produces a CLI that silently generates broken projects — no build error
+      # anywhere. Building from `git archive` reproduces exactly what a user
+      # would get, so the generator suite below runs against the real artifact.
+      - name: Build the CLI from tracked files only
+        run: |
+          mkdir -p "$RUNNER_TEMP/clean"
+          git archive HEAD | tar -x -C "$RUNNER_TEMP/clean"
+          cd "$RUNNER_TEMP/clean"
+          go build -o "$RUNNER_TEMP/gostack" ./cmd/gostack
+          "$RUNNER_TEMP/gostack" --version
+
+      - name: gostack new
+        working-directory: ${{ runner.temp }}
+        run: |
+          "$RUNNER_TEMP/gostack" new app \
+            --module example.com/app ${{ matrix.flags }} -y
+
+      # Files whose names start with "." or "_" are exactly what `//go:embed`
+      # drops without the `all:` prefix, so they are the canaries for a broken
+      # embed directive.
+      - name: Embed canaries survived
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          test -f .claude/skills/gostack/SKILL.md
+          test -f .claude/skills/gostack/sections/orchestrators.md
+          test -f .env.development
+          test -f .gitignore
+          test -f gostack.json
+          test -f internal/orchestrator/bootstrap/bootstrap.go
+          test -f internal/orchestrator/workers/workers.go
+
+      - name: Generators
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          G="$RUNNER_TEMP/gostack"
+          "$G" g uc seed_super_admin --orchestrator bootstrap
+          "$G" g uc outbox_drain --orchestrator workers
+          "$G" g uc plain_thing
+          "$G" g api create_order
+          "$G" g crud users ${{ matrix.frontend == 'true' && '--pages' || '' }}
+          if [ "${{ matrix.frontend }}" = "true" ]; then
+            "$G" g page 'posts/[post_id]'
+          fi
+
+      - name: Generated project builds
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          go build ./...
+          go vet ./...
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "generated code is not gofmt-clean:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      # Wire rejects a provider set nothing consumes. `g uc` without
+      # --orchestrator therefore must stay out of cmd/wire.go, while the two
+      # orchestrator-backed ones must be in it — the orchestrator is their
+      # consumer. Asserting it here keeps that rule executable rather than a
+      # comment someone can quietly break.
+      - name: Wire consumption rule holds
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          grep -q 'seed_super_admin.Set,' cmd/wire.go
+          grep -q 'outbox_drain.Set,' cmd/wire.go
+          grep -q 'create_order.Set,' cmd/wire.go
+          if grep -q 'plain_thing' cmd/wire.go; then
+            echo "a bare 'g uc' package reached cmd/wire.go — wire will reject it"
+            exit 1
+          fi
+          grep -q 'b.tasks = append(b.tasks, seed_super_adminB)' \
+            internal/orchestrator/bootstrap/bootstrap.go
+          grep -q 'w.workers = append(w.workers, outbox_drainW)' \
+            internal/orchestrator/workers/workers.go
+
+      # Every splice is guarded by a strings.Contains check. Re-running a
+      # generator must be a no-op, not a second registration that fails to
+      # compile.
+      - name: Generators are idempotent
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          "$RUNNER_TEMP/gostack" g uc seed_super_admin --orchestrator bootstrap
+          n=$(grep -c 'b.tasks = append' internal/orchestrator/bootstrap/bootstrap.go)
+          if [ "$n" -ne 1 ]; then
+            echo "expected 1 registration, found $n"
+            exit 1
+          fi
+          go build ./...

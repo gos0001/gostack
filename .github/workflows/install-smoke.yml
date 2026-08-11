@@ -1,0 +1,54 @@
+name: Install smoke test
+
+# CI proves the code in this repository works. This proves the path a stranger
+# actually takes still works: the curl one-liner from the README, against
+# whatever proxy.golang.org is currently serving for @latest. A tag that never
+# propagated, or a README command that drifted, only shows up here.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+  push:
+    paths:
+      - install.sh
+      - .github/workflows/install-smoke.yml
+
+permissions:
+  contents: read
+
+jobs:
+  curl-install:
+    runs-on: ubuntu-latest
+    # A clean container, not the runner image: the runner already has Go on
+    # PATH and a warm module cache, which would hide half of what this checks.
+    container: debian:stable-slim
+    steps:
+      - name: Dependencies
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq curl ca-certificates git
+
+      # install.sh is written for POSIX sh because piping into `sh` lands in
+      # dash here. Running it as dash is the whole point of this step.
+      - name: Install Go
+        run: |
+          arch=$(dpkg --print-architecture)
+          ver=$(curl -fsSL https://go.dev/VERSION?m=text | head -n1)
+          curl -fsSL "https://go.dev/dl/${ver}.linux-${arch}.tar.gz" -o /tmp/go.tgz
+          tar -C /usr/local -xzf /tmp/go.tgz
+          echo "/usr/local/go/bin" >> "$GITHUB_PATH"
+          echo "/root/go/bin" >> "$GITHUB_PATH"
+
+      - name: The README one-liner
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/install.sh" | sh
+
+      - name: Generate and build a project
+        run: |
+          cd "$(mktemp -d)"
+          gostack --version
+          gostack new smoke --module example.com/smoke --api-only -y
+          cd smoke
+          test -f .claude/skills/gostack/SKILL.md
+          test -f internal/orchestrator/bootstrap/bootstrap.go
+          go build ./...

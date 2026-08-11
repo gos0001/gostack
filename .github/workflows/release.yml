@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  # A tag must not become a release unless it generates working projects. This
+  # is the same suite CI runs on main, called rather than copied so the two
+  # cannot drift.
+  verify:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # No binary assets on purpose. install.sh requires a Go toolchain
+        # anyway — a machine without Go could not run a generated project — so
+        # prebuilt binaries would serve nobody and would need signing.
+        run: gh release create "${GITHUB_REF_NAME}" --generate-notes --verify-tag
+
+      # `go install pkg@latest` resolves through proxy.golang.org, which is
+      # pull-based: it only learns about a new tag once something asks for that
+      # exact version. Until then @latest keeps serving the previous answer,
+      # which is what "latest is broken" looks like from the outside. Asking for
+      # the tag here is what publishes it.
+      - name: Warm the module proxy
+        env:
+          GOPROXY: https://proxy.golang.org
+          GOFLAGS: ""
+        run: |
+          tmp=$(mktemp -d)
+          for attempt in 1 2 3 4 5; do
+            if GOPATH="$tmp" go install \
+                "github.com/${GITHUB_REPOSITORY}/cmd/gostack@${GITHUB_REF_NAME}"; then
+              echo "proxy serving ${GITHUB_REF_NAME}"
+              exit 0
+            fi
+            echo "attempt $attempt failed; the tag may not have propagated yet"
+            sleep 20
+          done
+          echo "the proxy never served ${GITHUB_REF_NAME}"
+          exit 1
+
+      # The actual regression test for the user-facing complaint: after a
+      # release, does the command in the README give you this version?
+      - name: '@latest resolves to this tag'
+        env:
+          GOPROXY: https://proxy.golang.org
+        run: |
+          tmp=$(mktemp -d)
+          GOPATH="$tmp" go install "github.com/${GITHUB_REPOSITORY}/cmd/gostack@latest"
+          got=$("$tmp/bin/gostack" --version)
+          echo "gostack --version -> $got"
+          case "$got" in
+          *"${GITHUB_REF_NAME}") ;;
+          *)
+            echo "expected @latest to be ${GITHUB_REF_NAME}"
+            exit 1
+            ;;
+          esac

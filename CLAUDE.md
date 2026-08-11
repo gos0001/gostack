@@ -22,7 +22,8 @@ go build -o /tmp/gostack ./cmd/gostack
 ```
 
 There is no test suite. The working check is to generate projects of each shape and
-build them:
+build them — which is exactly what `.github/workflows/ci.yml` does on every push, across
+both project shapes:
 
 ```bash
 cd $(mktemp -d)
@@ -163,6 +164,16 @@ to receive needs `git tag -a vX.Y.Z && git push origin vX.Y.Z`.
 The same split bites in reverse: a fix to `install.sh` alone reaches users on the next
 curl, with no tag needed.
 
+Tag only a commit CI has already passed on `main` — `.github/workflows/release.yml`
+re-runs the whole generation suite before it publishes anything, so a bad tag fails
+loudly rather than shipping. The workflow then creates the GitHub release and does the
+step that is easy to forget: **it asks `proxy.golang.org` for the new version.** The
+proxy is pull-based, so until something requests a tag explicitly, `@latest` keeps
+serving the previous answer and users report that "latest is broken". The workflow
+finishes by asserting `go install …@latest` really does resolve to the tag.
+
+Set `GOPROXY=direct` to bypass all of that when debugging a resolution problem by hand.
+
 `install.sh` is POSIX `sh`, not bash — piping into `sh` lands in dash on Debian. No
 `[[`, no arrays, no `local`. Check with `sh -n install.sh` and shellcheck.
 
@@ -177,6 +188,11 @@ reports something like `v0.1.0+dirty`; a repo with no tags at all reports `dev`.
 every entry whose name begins with `.` or `_`, dropping `.env.development.tmpl`,
 `.gitignore.tmpl`, `_post_id/` directories and the entire `.claude/` skill tree that
 every generated project ships.
+
+The CI job `e2e` is what catches this class of bug: it builds the CLI from
+`git archive HEAD` — tracked files only, the same content the module proxy serves — and
+runs every generator against *that* binary. A local `go build` reads the working tree and
+cannot see the problem at all.
 
 **Never add a bare `.claude/` rule to this repo's `.gitignore`.** It would exclude
 `templates/project/base/.claude/` from git. Local builds keep working — embed reads the

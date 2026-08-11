@@ -1,0 +1,16 @@
+version: 2
+updates:
+  # The CLI's own dependencies. The generated project's go.mod lives in
+  # templates/project/base/go.mod.tmpl and is not a real module, so dependabot
+  # cannot see it — bump those pins by hand when a release matters.
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
