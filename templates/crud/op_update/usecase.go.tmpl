@@ -2,11 +2,12 @@ package {{.PackageName}}
 
 import (
 	"context"
-
+{{if .WithPostgres}}
 	postgresadapter "{{.ModulePath}}/internal/adapter/postgres"
+{{end}}
 	"{{.ModulePath}}/internal/domain"
 )
-
+{{if .WithPostgres}}
 // Postgres is the narrow slice of the adapter this use case needs.
 type Postgres interface {
 	// Update{{.PascalEntity}}(ctx context.Context, e domain.{{.PascalEntity}}) (domain.{{.PascalEntity}}, error)
@@ -19,8 +20,18 @@ type Usecase struct {
 func New(pg *postgresadapter.Adapter) *Usecase {
 	return &Usecase{postgres: pg}
 }
+{{else}}
+type Usecase struct {
+	// This project has no postgres adapter. Declare a narrow interface here for
+	// whatever this use case writes to, and take the concrete type in New —
+	// wire resolves concrete types, not interfaces.
+}
 
+func New() *Usecase {
+	return &Usecase{}
+}
+{{end}}
 func (uc *Usecase) Execute(ctx context.Context, input Input) (Output, error) {
-	// TODO: uc.postgres.Update{{.PascalEntity}}(ctx, entity)
+	// TODO: apply input to the stored {{.PascalEntity}} and persist it
 	return Output{}, domain.Err{{.PascalEntity}}NotFound
 }
