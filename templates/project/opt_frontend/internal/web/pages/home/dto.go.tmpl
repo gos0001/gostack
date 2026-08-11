@@ -1,0 +1,10 @@
+package page
+
+// Input carries route parameters into the usecase. The home page takes none.
+type Input struct{}
+
+// Output is the view model handed to views.Render.
+// Field names must match what views/pages/home.html references.
+type Output struct {
+	Message string
+}

@@ -1,0 +1,17 @@
+package {{.PackageName}}
+
+import "fmt"
+
+type Input struct {
+	// TODO: add request body fields with json tags
+}
+
+func (i *Input) Validate() error {
+	// TODO: validate fields
+	_ = fmt.Sprintf
+	return nil
+}
+
+type Output struct {
+	ID string `json:"id"`
+}

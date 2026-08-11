@@ -1,0 +1,47 @@
+# <<.ProjectName>>
+
+Scaffolded by [gostack](https://github.com/gos0001/gostack). Module `<<.ModulePath>>`.
+
+> Read `.claude/skills/gostack/SKILL.md` before writing any Go in this repository.
+> It carries the full architecture contract; this file is only the hard edges.
+
+## Never edit by hand
+
+- ⛔ `cmd/wire_gen.go` — regenerate with `wire ./cmd/` (or `make generate`)
+- ⛔ the `// gostack:imports`, `:params`, `:routes`, `:providers` marker comments —
+  the CLI splices generated code at them. Deleting one silently stops future
+  generators from wiring anything into that file.
+<<if .WithFrontend>>- ⛔ `internal/web/routes.go` — owned by `gostack g page`
+<<end>><<if .WithPostgres>>- ⛔ `internal/adapter/postgres/generated/` — owned by `sqlc generate`
+<<end>>
+## Always
+
+- Prefer `gostack g uc|api|page|crud` over hand-writing a package. The generator
+  writes the package, its `wire.Set` and its route consistently.
+- Every *caller* of a use case gets its own handler file named after it, all
+  calling one `Execute`: `http_v1.go` for HTTP, `bootstrap.go` for startup,
+  `workers.go` for background loops. Generate the latter two with
+  `gostack g uc <name> --orchestrator bootstrap|workers`.
+- After any constructor change, re-run `wire ./cmd/`.
+<<if .WithPostgres>>- After editing `internal/adapter/postgres/queries/*.sql`, run `sqlc generate`
+  **before** `wire` — wire cannot compile the adapter until `generated/` exists.
+  `make generate` does both in the right order.
+<<end>>- Handlers respond through `pkg/http_server` helpers, never `c.JSON` directly.
+  The `{"data":...}` / `{"error":...}` envelope is the API contract.
+- `internal/domain` imports nothing from adapters or transport, and carries no
+  struct tags. Adapters map storage errors onto domain errors; handlers map
+  domain errors onto HTTP status codes with `errors.Is`.
+- `pkg/` never imports `internal/domain`. If it needs to, it is an adapter.
+- `gostack.json` is committed. The CLI reads it to know which features exist —
+  never add it to `.gitignore`.
+
+## Commands
+
+```
+make dev        # air hot reload
+make generate   # <<if .WithPostgres>>sqlc then <<end>>wire
+make test       # go test ./... -race
+make lint       # golangci-lint
+<<if .WithDocker>>make docker-up  # <<if .WithPostgres>>postgres<<end>><<if .WithRedis>> redis<<end>>
+<<end>><<if .WithPostgres>>make migrate-up # apply migrations
+<<end>>```

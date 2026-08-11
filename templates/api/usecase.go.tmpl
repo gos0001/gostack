@@ -1,0 +1,12 @@
+package {{.PackageName}}
+
+import "context"
+
+type Usecase struct{}
+
+func New() *Usecase { return &Usecase{} }
+
+func (uc *Usecase) Execute(_ context.Context, input Input) (Output, error) {
+	// TODO: implement
+	return Output{}, nil
+}

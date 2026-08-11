@@ -1,0 +1,20 @@
+package page
+
+import "context"
+
+// Usecase gathers the data this page needs to render.
+// It lives in the same package as the handler because it exists only for this
+// page and has no other caller. Business logic shared across pages or exposed
+// over the JSON API belongs in internal/usecases/ instead.
+type Usecase struct {
+	// Inject adapters here via NewUsecase.
+}
+
+func NewUsecase() *Usecase {
+	return &Usecase{}
+}
+
+func (uc *Usecase) Execute(_ context.Context, input Input) (Output, error) {
+	// TODO: load the data this page renders
+	return Output{Title: "{{.PagePath}}"}, nil
+}

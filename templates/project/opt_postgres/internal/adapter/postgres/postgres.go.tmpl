@@ -1,0 +1,57 @@
+// Package postgres adapts the database to domain types.
+//
+// Rules this package must keep:
+//   - every method returns domain types, never sqlc's generated.* structs
+//   - storage errors are mapped to domain errors (pgx.ErrNoRows →
+//     domain.ErrNotFound, pgconn code 23505 → domain.ErrAlreadyExists)
+//   - queries live in queries/*.sql and are compiled by `sqlc generate`;
+//     never hand-write SQL strings in Go, and never edit generated/
+package postgres
+
+import (
+	"errors"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+
+	pkgpostgres "{{.ModulePath}}/pkg/postgres"
+	"{{.ModulePath}}/internal/domain"
+)
+
+// uniqueViolation is Postgres' SQLSTATE for a duplicate key.
+const uniqueViolation = "23505"
+
+type Adapter struct {
+	pool *pkgpostgres.Pool
+
+	// Once you have run `make sqlc`, wire the generated queries in here:
+	//
+	//	q *generated.Queries
+	//
+	// and set it in New with generated.New(pool.Pool). It is left out until
+	// then so a freshly created project compiles before sqlc has ever run.
+}
+
+func New(pool *pkgpostgres.Pool) *Adapter {
+	return &Adapter{pool: pool}
+}
+
+// MapError translates a storage error into a domain error. Repository methods
+// should funnel their errors through this so use cases only ever see domain
+// errors and can branch on them with errors.Is.
+func MapError(err error, notFound error) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		if notFound != nil {
+			return notFound
+		}
+		return domain.ErrNotFound
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
+		return domain.ErrAlreadyExists
+	}
+	return err
+}

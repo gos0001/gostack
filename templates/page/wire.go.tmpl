@@ -1,0 +1,7 @@
+package page
+
+import "github.com/google/wire"
+
+// New        → *Handler
+// NewUsecase → *Usecase
+var Set = wire.NewSet(New, NewUsecase)

@@ -1,0 +1,69 @@
+services:
+{{- if .WithPostgres}}
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: {{.ProjectName}}_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+{{- end}}
+{{- if .WithRedis}}
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+{{- end}}
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env.development
+    environment:
+{{- if .WithPostgres}}
+      POSTGRES_DSN: postgres://postgres:postgres@postgres:5432/{{.ProjectName}}_dev?sslmode=disable
+{{- end}}
+{{- if .WithRedis}}
+      REDIS_URL: redis://redis:6379
+{{- end}}
+      APP_ADDR: ":8080"
+{{- if or .WithPostgres .WithRedis}}
+    depends_on:
+{{- if .WithPostgres}}
+      postgres:
+        condition: service_healthy
+{{- end}}
+{{- if .WithRedis}}
+      redis:
+        condition: service_healthy
+{{- end}}
+{{- end}}
+{{if or .WithPostgres .WithRedis}}
+volumes:
+{{- if .WithPostgres}}
+  postgres_data:
+{{- end}}
+{{- if .WithRedis}}
+  redis_data:
+{{- end}}
+{{- end}}

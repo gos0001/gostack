@@ -1,0 +1,15 @@
+package views
+
+import "github.com/kelseyhightower/envconfig"
+
+type Config struct {
+	TemplatesDir    string `envconfig:"VIEWS_TEMPLATES_DIR" default:"views"`
+	StaticDir       string `envconfig:"VIEWS_STATIC_DIR"    default:"static"`
+	DevMode         bool   `envconfig:"VIEWS_DEV_MODE"      default:"true"`
+	EmbedProduction bool   `envconfig:"VIEWS_EMBED"         default:"false"`
+}
+
+func LoadConfig() (Config, error) {
+	var cfg Config
+	return cfg, envconfig.Process("", &cfg)
+}

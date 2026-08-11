@@ -1,0 +1,150 @@
+package views
+
+import (
+	"fmt"
+	"html/template"
+	"io/fs"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+
+	"github.com/gin-gonic/gin"
+)
+
+type Engine struct {
+	cfg       Config
+	viewsFS   fs.FS
+	mu        sync.RWMutex
+	templates map[string]*template.Template
+}
+
+func New(cfg Config) (*Engine, error) {
+	e := &Engine{
+		cfg:       cfg,
+		templates: make(map[string]*template.Template),
+	}
+	if cfg.EmbedProduction {
+		// In production, caller must set viewsFS via NewWithFS
+		e.viewsFS = os.DirFS(cfg.TemplatesDir)
+	} else {
+		e.viewsFS = os.DirFS(cfg.TemplatesDir)
+	}
+	if err := e.compile(); err != nil {
+		return nil, fmt.Errorf("views: compile: %w", err)
+	}
+	return e, nil
+}
+
+func NewWithFS(cfg Config, viewsFS fs.FS) (*Engine, error) {
+	e := &Engine{cfg: cfg, viewsFS: viewsFS, templates: make(map[string]*template.Template)}
+	if err := e.compile(); err != nil {
+		return nil, fmt.Errorf("views: compile: %w", err)
+	}
+	return e, nil
+}
+
+func (e *Engine) Render(c *gin.Context, page string, data any) {
+	if e.cfg.DevMode {
+		_ = e.compile()
+	}
+	if c.GetHeader("HX-Request") == "true" && c.GetHeader("HX-Boosted") != "true" {
+		e.renderBlock(c, page, "content", data)
+		return
+	}
+	e.renderFull(c, page, data)
+}
+
+func (e *Engine) RenderPartial(c *gin.Context, component string, data any) {
+	if e.cfg.DevMode {
+		_ = e.compile()
+	}
+	e.mu.RLock()
+	t, ok := e.templates["component:"+component]
+	e.mu.RUnlock()
+	if !ok {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	if err := t.Execute(c.Writer, data); err != nil {
+		_ = c.Error(err)
+	}
+}
+
+func (e *Engine) renderFull(c *gin.Context, page string, data any) {
+	e.mu.RLock()
+	t, ok := e.templates[page]
+	e.mu.RUnlock()
+	if !ok {
+		c.String(http.StatusNotFound, "page %q not found", page)
+		return
+	}
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	if err := t.ExecuteTemplate(c.Writer, "base.html", data); err != nil {
+		_ = c.Error(err)
+	}
+}
+
+func (e *Engine) renderBlock(c *gin.Context, page, block string, data any) {
+	e.mu.RLock()
+	t, ok := e.templates[page]
+	e.mu.RUnlock()
+	if !ok {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	if err := t.ExecuteTemplate(c.Writer, block, data); err != nil {
+		_ = c.Error(err)
+	}
+}
+
+func (e *Engine) compile() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	compiled := make(map[string]*template.Template)
+
+	layouts, _ := fs.Glob(e.viewsFS, "layouts/*.html")
+	components, _ := fs.Glob(e.viewsFS, "components/*.html")
+	shared := append(layouts, components...)
+
+	pages, _ := fs.Glob(e.viewsFS, "pages/*.html")
+	for _, p := range pages {
+		files := append(shared, p)
+		t, err := template.New("").ParseFS(e.viewsFS, files...)
+		if err != nil {
+			return fmt.Errorf("parse page %s: %w", p, err)
+		}
+		name := strings.TrimSuffix(filepath.Base(p), ".html")
+		compiled[name] = t
+	}
+
+	// Sub-directory pages (e.g. pages/users/detail.html → "users/detail")
+	subPages, _ := fs.Glob(e.viewsFS, "pages/**/*.html")
+	for _, p := range subPages {
+		rel, _ := filepath.Rel("pages", p)
+		files := append(shared, p)
+		t, err := template.New("").ParseFS(e.viewsFS, files...)
+		if err != nil {
+			return fmt.Errorf("parse page %s: %w", p, err)
+		}
+		name := strings.TrimSuffix(rel, ".html")
+		compiled[name] = t
+	}
+
+	// Standalone components for RenderPartial
+	for _, c := range components {
+		t, err := template.New("").ParseFS(e.viewsFS, c)
+		if err != nil {
+			return fmt.Errorf("parse component %s: %w", c, err)
+		}
+		name := "component:" + strings.TrimSuffix(filepath.Base(c), ".html")
+		compiled[name] = t
+	}
+
+	e.templates = compiled
+	return nil
+}

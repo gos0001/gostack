@@ -1,0 +1,48 @@
+package {{.PackageName}}
+
+import (
+	"context"
+	"time"
+
+	"go.uber.org/zap"
+)
+
+// WorkersHandler is this use case's caller for the workers orchestrator —
+// one handler file per caller, named after the caller, exactly like http_v1.go.
+type WorkersHandler struct {
+	logger *zap.SugaredLogger
+	cfg    Config
+	uc     *Usecase
+}
+
+func NewWorkers(logger *zap.SugaredLogger, cfg Config, uc *Usecase) *WorkersHandler {
+	return &WorkersHandler{logger: logger, cfg: cfg, uc: uc}
+}
+
+func (h *WorkersHandler) Name() string { return "{{.FeatureName}}" }
+
+// WorkersRun ticks until the context is cancelled. Returning ctx.Err() on
+// cancellation is what tells the orchestrator this was a clean stop rather
+// than a crash.
+func (h *WorkersHandler) WorkersRun(ctx context.Context) error {
+	if !h.cfg.Enabled {
+		h.logger.Infow("worker disabled", "worker", h.Name())
+		return nil
+	}
+
+	ticker := time.NewTicker(h.cfg.Interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			// One failed tick must not kill the worker — log it and wait for
+			// the next one.
+			if _, err := h.uc.Execute(ctx, Input{}); err != nil {
+				h.logger.Errorw("worker tick failed", "worker", h.Name(), "error", err)
+			}
+		}
+	}
+}

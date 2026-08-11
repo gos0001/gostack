@@ -1,0 +1,64 @@
+.PHONY: dev build run generate wire test lint build-prod tools{{if .WithPostgres}} sqlc migrate-up migrate-down migrate-create{{end}}{{if .WithDocker}} docker-up docker-down{{end}}
+
+APP_BIN := ./bin/app
+ENV_FILE := .env.development
+
+dev:
+	@export $$(cat $(ENV_FILE) | grep -v '^#' | xargs) && air
+
+run:
+	@export $$(cat $(ENV_FILE) | grep -v '^#' | xargs) && go run ./cmd
+
+build:
+	@go build -o $(APP_BIN) ./cmd
+
+{{if .WithPostgres -}}
+# sqlc MUST run before wire: wire cannot compile the postgres adapter until the
+# generated/ package exists.
+generate: sqlc wire
+
+sqlc:
+	@sqlc generate
+{{- else -}}
+generate: wire
+{{- end}}
+
+wire:
+	@wire ./cmd/
+
+test:
+	@go test ./... -race -count=1
+
+lint:
+	@golangci-lint run ./...
+
+build-prod:
+	@{{if .WithFrontend}}VIEWS_EMBED=true {{end}}go build -tags production -o $(APP_BIN) ./cmd
+
+tools:
+	@go install github.com/air-verse/air@latest
+	@go install github.com/google/wire/cmd/wire@latest
+{{- if .WithPostgres}}
+	@go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+	@go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+{{- end}}
+	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+{{if .WithDocker}}
+docker-up:
+	@docker compose up -d{{if .WithPostgres}} postgres{{end}}{{if .WithRedis}} redis{{end}}
+
+docker-down:
+	@docker compose down
+{{end}}
+{{- if .WithPostgres}}
+migrate-create:
+	@migrate create -ext sql -dir migrations -seq $(name)
+
+migrate-up:
+	@export $$(cat $(ENV_FILE) | grep -v '^#' | xargs) && \
+		migrate -path migrations -database $$POSTGRES_DSN up
+
+migrate-down:
+	@export $$(cat $(ENV_FILE) | grep -v '^#' | xargs) && \
+		migrate -path migrations -database $$POSTGRES_DSN down 1
+{{- end}}

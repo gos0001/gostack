@@ -1,0 +1,29 @@
+package {{.PackageName}}
+
+import (
+	"context"
+
+	postgresadapter "{{.ModulePath}}/internal/adapter/postgres"
+	"{{.ModulePath}}/internal/domain"
+)
+
+// Postgres is the narrow slice of the adapter this use case needs.
+// Add the method here once you have written the query and the repo method.
+type Postgres interface {
+	// Get{{.PascalEntity}}ByID(ctx context.Context, id string) (domain.{{.PascalEntity}}, error)
+}
+
+type Usecase struct {
+	postgres Postgres
+}
+
+// New takes the concrete adapter (so wire can resolve it) but stores it behind
+// the narrow interface above.
+func New(pg *postgresadapter.Adapter) *Usecase {
+	return &Usecase{postgres: pg}
+}
+
+func (uc *Usecase) Execute(ctx context.Context, input Input) (Output, error) {
+	// TODO: uc.postgres.Get{{.PascalEntity}}ByID(ctx, input.ID) → map to Output
+	return Output{}, domain.Err{{.PascalEntity}}NotFound
+}

@@ -1,0 +1,28 @@
+# Built binaries
+/gostack
+/bin/
+/dist/
+
+# Go
+*.test
+*.out
+coverage.*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Local Claude Code state only.
+#
+# Do NOT add a bare `.claude/` rule here. It would also match
+# templates/project/*/.claude/, which must ship inside the embedded FS.
+# Excluding it there breaks `go install` builds silently: the CLI still
+# compiles, it just generates projects with no skill and no error anywhere.
+/.claude/settings.local.json
+/.claude/*.local.json
+
+# Scratch projects created while testing the generator
+/tmp/
+/demo-*/
+/t[0-9]*/

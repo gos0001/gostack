@@ -1,0 +1,31 @@
+package page
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
+	"{{.ModulePath}}/pkg/views"
+)
+
+type Handler struct {
+	uc    *Usecase
+	views *views.Engine
+}
+
+func New(uc *Usecase, v *views.Engine) *Handler {
+	return &Handler{uc: uc, views: v}
+}
+
+func (h *Handler) Handle(c *gin.Context) {
+	out, err := h.uc.Execute(c.Request.Context(), Input{})
+	if err != nil {
+		c.String(http.StatusInternalServerError, "internal server error")
+		return
+	}
+	h.views.Render(c, "home", out)
+}
+
+func (h *Handler) Register(r *gin.RouterGroup) {
+	r.GET("", h.Handle)
+}

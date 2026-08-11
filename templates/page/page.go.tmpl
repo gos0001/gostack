@@ -1,0 +1,42 @@
+package page
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
+	"{{.ModulePath}}/pkg/views"
+)
+
+type Handler struct {
+	uc    *Usecase
+	views *views.Engine
+}
+
+func New(uc *Usecase, v *views.Engine) *Handler {
+	return &Handler{uc: uc, views: v}
+}
+
+func (h *Handler) Handle(c *gin.Context) {
+	input := Input{
+	{{- range .ParamNames}}
+		{{toPascal .}}: c.Param("{{.}}"),
+	{{- end}}
+	}
+
+	out, err := h.uc.Execute(c.Request.Context(), input)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	h.views.Render(c, "{{.ViewPath}}", out)
+}
+
+func (h *Handler) Register(r *gin.RouterGroup) {
+	{{- if .ParamNames}}
+	r.GET("/:{{index .ParamNames 0}}", h.Handle)
+	{{- else}}
+	r.GET("", h.Handle)
+	{{- end}}
+}

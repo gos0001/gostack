@@ -1,0 +1,17 @@
+package {{.PackageName}}
+
+import "fmt"
+
+type Input struct {
+	ID string `json:"-"`
+	// TODO: add fields to update
+}
+
+func (i *Input) Validate() error {
+	if i.ID == "" {
+		return fmt.Errorf("id is required")
+	}
+	return nil
+}
+
+type Output struct{}

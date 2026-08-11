@@ -1,0 +1,120 @@
+package main
+
+import (
+	"context"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+
+	"{{.ModulePath}}/internal/orchestrator/bootstrap"
+	"{{.ModulePath}}/internal/orchestrator/workers"
+{{- if .WithFrontend}}
+	"{{.ModulePath}}/internal/web"
+{{- end}}
+{{- if .WithPostgres}}
+	pkgpostgres "{{.ModulePath}}/pkg/postgres"
+{{- end}}
+{{- if .WithRedis}}
+	pkgredis "{{.ModulePath}}/pkg/redis"
+{{- end}}
+)
+
+type App struct {
+	logger     *zap.SugaredLogger
+	router     *gin.Engine
+	httpServer *http.Server
+	bootstrap  *bootstrap.Bootstrap
+	workers    *workers.Workers
+{{- if .WithPostgres}}
+	pg *pkgpostgres.Pool
+{{- end}}
+{{- if .WithRedis}}
+	rdb *pkgredis.Client
+{{- end}}
+}
+
+func NewApp(
+	logger *zap.SugaredLogger,
+	router *gin.Engine,
+	cfg Config,
+	boot *bootstrap.Bootstrap,
+	wrk *workers.Workers,
+{{- if .WithFrontend}}
+	// Taken purely so wire builds it — constructing Pages is what registers
+	// the SSR page routes on the shared router.
+	_ *web.Pages,
+{{- end}}
+{{- if .WithPostgres}}
+	pg *pkgpostgres.Pool,
+{{- end}}
+{{- if .WithRedis}}
+	rdb *pkgredis.Client,
+{{- end}}
+) *App {
+	return &App{
+		logger: logger,
+		router: router,
+		httpServer: &http.Server{
+			Addr:    cfg.Addr,
+			Handler: router,
+		},
+		bootstrap: boot,
+		workers:   wrk,
+{{- if .WithPostgres}}
+		pg: pg,
+{{- end}}
+{{- if .WithRedis}}
+		rdb: rdb,
+{{- end}}
+	}
+}
+
+func (a *App) Run() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Bootstrap before the listener opens: a failed startup task must stop the
+	// process, not let it serve traffic against a half-prepared system.
+	if err := a.bootstrap.Run(ctx); err != nil {
+		a.logger.Fatalw("bootstrap failed", "error", err)
+	}
+
+	a.workers.Start(ctx)
+
+	a.logger.Infow("starting server", "addr", a.httpServer.Addr)
+{{- if .WithFrontend}}
+
+	a.router.Static("/static", "static")
+{{- end}}
+
+	go func() {
+		if err := a.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			a.logger.Fatalw("server error", "error", err)
+		}
+	}()
+
+	waitForShutdown(func() {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer shutdownCancel()
+
+		// Stop accepting requests before tearing down what they depend on.
+		if err := a.httpServer.Shutdown(shutdownCtx); err != nil {
+			a.logger.Errorw("shutdown error", "error", err)
+		}
+
+		// Workers next: they hold connections from the pools closed below.
+		a.workers.Stop()
+{{- if .WithPostgres}}
+		a.pg.Close()
+{{- end}}
+{{- if .WithRedis}}
+		if err := a.rdb.Close(); err != nil {
+			a.logger.Errorw("redis close error", "error", err)
+		}
+{{- end}}
+
+		a.logger.Info("server stopped")
+	})
+}

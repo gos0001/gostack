@@ -1,0 +1,88 @@
+# Project layout — who owns which file
+
+Import paths below are relative to `<<.ModulePath>>`.
+
+## Dependency direction
+
+Never reversed:
+
+```
+pkg/  ←  adapter/  ←  domain/  ←  usecases/  ←  controller/
+                                           ↖  orchestrator/
+```
+
+`controller/` and `orchestrator/` sit at the same level: both are callers of use
+cases, one reached over the network, the other by the process lifecycle.
+
+`pkg/` is the floor: thin wrappers over libraries, zero `internal/domain` imports.
+If something in `pkg/` needs a domain type, it is an adapter, not a pkg.
+
+## Three kinds of file
+
+**Hand-written — yours.**
+`internal/domain/*.go`, `internal/usecases/**`, `pkg/**`, `cmd/app.go`,
+`cmd/config.go`, `cmd/main.go`, adapters<<if .WithFrontend>>, `internal/web/pages/**`, `views/**`, `static/**`<<end>>.
+
+**Generated — regenerate, never edit.**
+
+| File | Owner | Regenerate with |
+|---|---|---|
+| `cmd/wire_gen.go` | wire | `wire ./cmd/` |
+<<if .WithPostgres>>| `internal/adapter/postgres/generated/` | sqlc | `sqlc generate` |
+<<end>><<if .WithFrontend>>| `internal/web/routes.go` | gostack | `gostack g page` |
+<<end>>
+**Machine-edited — yours, but the CLI splices into it.**
+`cmd/wire.go`, `internal/controller/http_v1/controller.go` and
+`internal/orchestrator/*/{bootstrap,workers}.go` are normal files you may edit,
+but they carry marker comments the generators insert at:
+
+```go
+// gostack:imports     inside the import block
+// gostack:params      inside the New(...) parameter list
+// gostack:routes      in the routing body
+// gostack:providers   inside wire.Build(...)
+```
+
+Keep the markers. Deleting one does not break the build — it silently stops the
+next generator from wiring anything into that file.
+
+## Directory map
+
+```
+cmd/                        entrypoint; graceful shutdown lives in app.go
+internal/domain/            models + sentinel errors; no tags, no imports out
+internal/usecases/          business logic, one package per use case
+internal/controller/http_v1 JSON routes; routing only
+internal/orchestrator/      non-network callers: bootstrap/ and workers/
+<<if .WithFrontend>>internal/web/               the whole SSR layer
+internal/web/routes.go      SSR routes; GENERATED
+internal/web/pages/         one package per page; handler + usecase together
+<<end>><<if .WithPostgres>>internal/adapter/postgres/  queries/*.sql, generated/, MapError
+<<end>><<if .WithRedis>>internal/adapter/redis/     cache/session storage
+<<end>>pkg/                        logger, http_server<<if .WithFrontend>>, views<<end>><<if .WithPostgres>>, postgres<<end>><<if .WithRedis>>, redis<<end>>
+<<if .WithFrontend>>views/                      layouts/, components/, pages/
+static/                     css/, js/
+<<end>><<if .WithPostgres>>migrations/                 NNNNNN_name.up.sql / .down.sql
+<<end>>```
+
+<<if .WithFrontend>>## Where the frontend ends
+
+One rule, and it is a hard one:
+
+- `internal/web/**` renders HTML. It may import `internal/usecases/**` and
+  `internal/domain`, and it is the only place that touches `pkg/views` or writes
+  a template name.
+- `internal/usecases/**` is backend. It talks to adapters and returns domain
+  types. It must never import `pkg/views`, take a `*gin.Context`, or know that a
+  browser exists — that logic is equally reachable from the JSON API.
+
+A page's own `Usecase` lives beside its handler in `internal/web/pages/<path>/`
+precisely because it has exactly one caller. The moment a second caller appears,
+or the same data goes out over `/api/v1`, it belongs in `internal/usecases/`.
+
+<<end>>## gostack.json
+
+Records which features this project was created with. The CLI reads it to decide
+whether `gostack g page` is allowed, whether to emit SQL, and so on. It is
+committed; if it goes missing the CLI falls back to probing the tree, which is
+less reliable. Never add it to `.gitignore`.

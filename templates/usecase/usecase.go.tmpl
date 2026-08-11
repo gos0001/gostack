@@ -1,0 +1,16 @@
+package {{.PackageName}}
+
+import "context"
+
+type Usecase struct {
+	// Inject adapters here via constructor
+}
+
+func New() *Usecase {
+	return &Usecase{}
+}
+
+func (uc *Usecase) Execute(_ context.Context, input Input) (Output, error) {
+	// TODO: implement business logic
+	return Output{}, nil
+}

@@ -1,0 +1,20 @@
+package {{.PackageName}}
+
+import (
+	"fmt"
+)
+
+type Input struct {
+	ID string `json:"-"`
+}
+
+func (i *Input) Validate() error {
+	if i.ID == "" {
+		return fmt.Errorf("id is required")
+	}
+	return nil
+}
+
+type Output struct {
+	// TODO: map from domain.{{.PascalEntity}}
+}

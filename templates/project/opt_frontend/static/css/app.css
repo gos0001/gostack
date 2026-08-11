@@ -1,0 +1,27 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body { font-family: system-ui, sans-serif; color: #1a1a1a; background: #fafafa; }
+
+.container { max-width: 960px; margin: 0 auto; padding: 2rem 1rem; }
+
+.navbar {
+  display: flex; align-items: center; gap: 2rem;
+  padding: 1rem 2rem; background: #111; color: #fff;
+}
+.navbar .brand { color: #fff; text-decoration: none; font-weight: 700; font-size: 1.2rem; }
+.navbar ul { display: flex; gap: 1.5rem; list-style: none; }
+.navbar a { color: #ccc; text-decoration: none; }
+.navbar a:hover { color: #fff; }
+
+.hero { padding: 4rem 0; text-align: center; }
+.hero h1 { font-size: 2.5rem; margin-bottom: 1rem; }
+.hero p { color: #555; margin-bottom: 2rem; }
+
+.btn {
+  display: inline-block; padding: 0.6rem 1.4rem;
+  background: #111; color: #fff; border: none;
+  border-radius: 6px; cursor: pointer; font-size: 1rem;
+}
+.btn:hover { background: #333; }
+
+.demo { display: flex; gap: 1rem; align-items: center; justify-content: center; }

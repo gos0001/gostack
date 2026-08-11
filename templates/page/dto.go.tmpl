@@ -1,0 +1,13 @@
+package page
+
+// Input carries route parameters into the usecase.
+type Input struct {
+{{- range .ParamNames}}
+	{{toPascal .}} string
+{{- end}}
+}
+
+// Output is the view model handed to views.Render.
+type Output struct {
+	Title string
+}

@@ -1,0 +1,106 @@
+# Orchestrators — callers that are not the network
+
+`internal/controller/http_v1` is one way into a use case: an HTTP request.
+Orchestrators are the others. An orchestrator owns the lifecycle of a class of
+process — startup steps, background loops — and routes it into use cases.
+
+Two ship with every project:
+
+```
+internal/orchestrator/
+├── bootstrap/   runs tasks once, at startup, before the listener opens
+│   ├── bootstrap.go   Task interface, Run(ctx) — MACHINE-EDITED
+│   ├── config.go      BOOTSTRAP_TIMEOUT (default 60s)
+│   └── wire.go
+└── workers/     runs long-lived goroutines for the life of the process
+    ├── workers.go     Worker interface, Start(ctx) / Stop() — MACHINE-EDITED
+    ├── config.go      WORKERS_SHUTDOWN_TIMEOUT (default 15s)
+    └── wire.go
+```
+
+`bootstrap.go` and `workers.go` are yours to tune — the run policy is ordinary
+code — but they carry the same marker comments `cmd/wire.go` does, and the CLI
+splices at them:
+
+```go
+// gostack:imports    inside the import block
+// gostack:params     inside New(...)
+// gostack:routes     in the registration body
+```
+
+Both are consumed by `NewApp` in `cmd/app.go` from the very first build, with
+zero tasks registered. That is deliberate — see `@sections/wire.md`.
+
+## One handler file per caller
+
+The rule is the same one `http_v1.go` follows: **every caller of a use case gets
+its own file in the slice, named after the caller.** All of them call the same
+`Execute`.
+
+```
+internal/usecases/create_user/      internal/usecases/seed_super_admin/
+├── usecase.go                      ├── usecase.go
+├── dto.go                          ├── dto.go
+├── http_v1.go   the HTTP caller    ├── config.go     gates the task
+└── wire.go                         ├── bootstrap.go  the bootstrap caller
+                                    └── wire.go
+```
+
+Nothing stops a use case having several. A slice with `http_v1.go` **and**
+`bootstrap.go` is a use case reachable both from `POST /api/v1/...` and at
+startup, with one `Execute` behind both.
+
+## Generating one
+
+```
+gostack g uc seed_super_admin --orchestrator bootstrap
+gostack g uc outbox_drain     --orchestrator workers
+```
+
+Writes `usecase.go`, `dto.go`, `config.go`, `<orchestrator>.go`, `wire.go`, then
+**mutates** `cmd/wire.go` and `internal/orchestrator/<name>/<name>.go` — import,
+constructor parameter, and the line that appends the handler to the slice.
+
+Every generated task is **off by default**. Turn it on per environment:
+
+```bash
+SEED_SUPER_ADMIN_ENABLED=true
+OUTBOX_DRAIN_ENABLED=true
+OUTBOX_DRAIN_INTERVAL=30s     # workers only
+```
+
+A seeder that runs because someone forgot to set a variable is worse than one
+that never runs, so the default is `false` and the handler returns early.
+
+## What each orchestrator guarantees
+
+**bootstrap** runs its tasks in registration order, inside one shared timeout,
+*before* `ListenAndServe`. The first error aborts the boot with `Fatalw`: serving
+traffic against a half-prepared system is worse than not starting.
+
+**workers** gives each worker its own goroutine and a context cancelled at
+shutdown. A worker that returns an error is logged, never fatal — a broken
+background job must not take the HTTP server down. `Stop()` runs *after* the HTTP
+server drains and *before* the pools close, because workers hold connections from
+them. Returning `ctx.Err()` on cancellation is how a worker reports a clean stop.
+
+## Adding a third orchestrator
+
+There is no generator for the orchestrator package itself — write it by hand:
+
+1. `internal/orchestrator/<name>/` with an interface (`Name() string` plus one
+   `<Name>Run(ctx) error`), a struct holding the slice, `config.go`, and
+   `wire.go` exporting `Set`.
+2. Copy the three marker comments from `bootstrap.go` — `// gostack:imports` in
+   the import block, `// gostack:params` in `New(...)`, `// gostack:routes` in
+   the registration body.
+3. Add its `Set` to `cmd/wire.go` and a parameter to `NewApp`, then call it from
+   `App.Run`. Without a consumer, wire fails with *unused provider set*.
+
+The CLI only knows `bootstrap` and `workers`, so a third one is wired by hand.
+
+## What an orchestrator may not do
+
+Sequencing only, exactly like the controller. No business logic, no domain types,
+no adapters, no branching on data. If a task needs to decide something, that
+decision belongs in its `Execute`.

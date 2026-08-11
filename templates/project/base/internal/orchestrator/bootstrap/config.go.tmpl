@@ -1,0 +1,18 @@
+package bootstrap
+
+import (
+	"time"
+
+	"github.com/kelseyhightower/envconfig"
+)
+
+type Config struct {
+	// Timeout bounds the whole startup sequence, not each task. A task that
+	// hangs must not wedge the process before the listener ever opens.
+	Timeout time.Duration `envconfig:"BOOTSTRAP_TIMEOUT" default:"60s"`
+}
+
+func LoadConfig() (Config, error) {
+	var cfg Config
+	return cfg, envconfig.Process("", &cfg)
+}

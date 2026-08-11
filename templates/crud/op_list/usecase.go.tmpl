@@ -1,0 +1,25 @@
+package {{.PackageName}}
+
+import (
+	"context"
+
+	postgresadapter "{{.ModulePath}}/internal/adapter/postgres"
+)
+
+// Postgres is the narrow slice of the adapter this use case needs.
+type Postgres interface {
+	// List{{.PascalEntity}}s(ctx context.Context, limit, offset int32) ([]domain.{{.PascalEntity}}, error)
+}
+
+type Usecase struct {
+	postgres Postgres
+}
+
+func New(pg *postgresadapter.Adapter) *Usecase {
+	return &Usecase{postgres: pg}
+}
+
+func (uc *Usecase) Execute(ctx context.Context, input Input) (Output, error) {
+	// TODO: uc.postgres.List{{.PascalEntity}}s(ctx, input.Limit, input.Offset)
+	return Output{Items: []Item{}}, nil
+}

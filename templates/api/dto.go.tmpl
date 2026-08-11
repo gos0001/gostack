@@ -1,0 +1,12 @@
+package {{.PackageName}}
+
+import "fmt"
+
+type Input struct{}
+
+func (i *Input) Validate() error {
+	_ = fmt.Sprintf // prevent unused import
+	return nil
+}
+
+type Output struct{}

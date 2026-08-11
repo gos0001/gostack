@@ -1,0 +1,48 @@
+//go:build wireinject
+
+package main
+
+import (
+	"github.com/google/wire"
+
+	"{{.ModulePath}}/internal/controller/http_v1"
+	"{{.ModulePath}}/internal/orchestrator/bootstrap"
+	"{{.ModulePath}}/internal/orchestrator/workers"
+	"{{.ModulePath}}/pkg/logger"
+{{- if .WithPostgres}}
+	pkgpostgres "{{.ModulePath}}/pkg/postgres"
+{{- end}}
+{{- if .WithRedis}}
+	pkgredis "{{.ModulePath}}/pkg/redis"
+{{- end}}
+{{- if .WithFrontend}}
+	"{{.ModulePath}}/internal/web"
+	homepage "{{.ModulePath}}/internal/web/pages/home"
+	pkgviews "{{.ModulePath}}/pkg/views"
+{{- end}}
+	// gostack:imports
+)
+
+func InitializeApp() (*App, error) {
+	wire.Build(
+		LoadConfig,
+		logger.Set,
+{{- if .WithPostgres}}
+		pkgpostgres.Set,
+{{- end}}
+{{- if .WithRedis}}
+		pkgredis.Set,
+{{- end}}
+{{- if .WithFrontend}}
+		pkgviews.Set,
+		web.Set,
+		homepage.Set,
+{{- end}}
+		http_v1.Set,
+		bootstrap.Set,
+		workers.Set,
+		// gostack:providers
+		NewApp,
+	)
+	return nil, nil
+}

@@ -1,0 +1,14 @@
+package {{.PackageName}}
+
+import "github.com/kelseyhightower/envconfig"
+
+// Config gates this startup task. Disabled by default: a fresh deploy must
+// never run a seeder or a migration-like step by accident.
+type Config struct {
+	Enabled bool `envconfig:"{{.FeatureName | toUpper}}_ENABLED" default:"false"`
+}
+
+func LoadConfig() (Config, error) {
+	var cfg Config
+	return cfg, envconfig.Process("", &cfg)
+}

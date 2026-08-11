@@ -1,0 +1,27 @@
+package {{.PackageName}}
+
+import (
+	"context"
+
+	postgresadapter "{{.ModulePath}}/internal/adapter/postgres"
+)
+
+// Postgres is the narrow slice of the adapter this use case needs.
+type Postgres interface {
+	// Create{{.PascalEntity}}(ctx context.Context, e domain.{{.PascalEntity}}) (domain.{{.PascalEntity}}, error)
+}
+
+type Usecase struct {
+	postgres Postgres
+}
+
+func New(pg *postgresadapter.Adapter) *Usecase {
+	return &Usecase{postgres: pg}
+}
+
+func (uc *Usecase) Execute(ctx context.Context, input Input) (Output, error) {
+	// TODO: build a domain.{{.PascalEntity}} from input, then
+	// uc.postgres.Create{{.PascalEntity}}(ctx, entity).
+	// The adapter maps a duplicate key to domain.Err{{.PascalEntity}}AlreadyExists.
+	return Output{}, nil
+}

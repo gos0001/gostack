@@ -1,0 +1,18 @@
+package domain
+
+import (
+	"errors"
+	"time"
+)
+
+var (
+	Err{{.PascalEntity}}NotFound      = errors.New("{{.EntityName}} not found")
+	Err{{.PascalEntity}}AlreadyExists = errors.New("{{.EntityName}} already exists")
+)
+
+type {{.PascalEntity}} struct {
+	ID        string
+	// TODO: add your fields here
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}

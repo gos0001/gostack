@@ -1,0 +1,11 @@
+-- Table backing internal/domain/{{.EntityName}}.go
+-- Add your columns here, keep internal/domain/{{.EntityName}}.go in sync, then:
+--   make migrate-up   (apply)
+--   make sqlc         (regenerate typed queries)
+
+CREATE TABLE IF NOT EXISTS {{.EntityPlural}} (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    -- TODO: add your columns
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

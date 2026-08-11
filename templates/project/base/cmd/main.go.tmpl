@@ -1,0 +1,13 @@
+package main
+
+import (
+	"log"
+)
+
+func main() {
+	app, err := InitializeApp()
+	if err != nil {
+		log.Fatalf("init app: %v", err)
+	}
+	app.Run()
+}

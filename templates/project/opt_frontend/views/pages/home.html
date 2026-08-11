@@ -1,0 +1,18 @@
+{{define "title"}}Home — gostack{{end}}
+{{define "content"}}
+<section class="hero">
+  <h1>{{.Message}}</h1>
+  <p>A fullstack Go framework inspired by NestJS.</p>
+
+  <div class="demo">
+    <button
+      hx-get="/api/v1/ping"
+      hx-target="#ping-result"
+      hx-swap="innerHTML"
+      class="btn">
+      Ping API
+    </button>
+    <span id="ping-result"></span>
+  </div>
+</section>
+{{end}}

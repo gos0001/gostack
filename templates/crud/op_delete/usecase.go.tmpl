@@ -1,0 +1,25 @@
+package {{.PackageName}}
+
+import (
+	"context"
+
+	postgresadapter "{{.ModulePath}}/internal/adapter/postgres"
+)
+
+// Postgres is the narrow slice of the adapter this use case needs.
+type Postgres interface {
+	// Delete{{.PascalEntity}}(ctx context.Context, id string) error
+}
+
+type Usecase struct {
+	postgres Postgres
+}
+
+func New(pg *postgresadapter.Adapter) *Usecase {
+	return &Usecase{postgres: pg}
+}
+
+func (uc *Usecase) Execute(ctx context.Context, input Input) error {
+	// TODO: uc.postgres.Delete{{.PascalEntity}}(ctx, input.ID)
+	return nil
+}

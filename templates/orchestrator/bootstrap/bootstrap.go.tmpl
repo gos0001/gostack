@@ -1,0 +1,32 @@
+package {{.PackageName}}
+
+import (
+	"context"
+
+	"go.uber.org/zap"
+)
+
+// BootstrapHandler is this use case's caller for the bootstrap orchestrator —
+// one handler file per caller, named after the caller, exactly like http_v1.go.
+type BootstrapHandler struct {
+	logger *zap.SugaredLogger
+	cfg    Config
+	uc     *Usecase
+}
+
+func NewBootstrap(logger *zap.SugaredLogger, cfg Config, uc *Usecase) *BootstrapHandler {
+	return &BootstrapHandler{logger: logger, cfg: cfg, uc: uc}
+}
+
+func (h *BootstrapHandler) Name() string { return "{{.FeatureName}}" }
+
+func (h *BootstrapHandler) BootstrapRun(ctx context.Context) error {
+	if !h.cfg.Enabled {
+		h.logger.Infow("bootstrap task disabled", "task", h.Name())
+		return nil
+	}
+
+	// TODO: fill Input from h.cfg
+	_, err := h.uc.Execute(ctx, Input{})
+	return err
+}

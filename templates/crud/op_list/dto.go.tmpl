@@ -1,0 +1,15 @@
+package {{.PackageName}}
+
+type Input struct {
+	Limit  int32 `form:"limit"`
+	Offset int32 `form:"offset"`
+}
+
+type Item struct {
+	// TODO: map from domain.{{.PascalEntity}}
+}
+
+type Output struct {
+	Items []Item `json:"items"`
+	Total int    `json:"total"`
+}

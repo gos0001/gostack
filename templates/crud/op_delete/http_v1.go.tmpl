@@ -1,0 +1,39 @@
+package {{.PackageName}}
+
+import (
+	"errors"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
+	"{{.ModulePath}}/internal/domain"
+)
+
+type HTTPv1Handler struct {
+	uc *Usecase
+}
+
+func NewHTTPv1(uc *Usecase) *HTTPv1Handler {
+	return &HTTPv1Handler{uc: uc}
+}
+
+func (h *HTTPv1Handler) Handle(c *gin.Context) {
+	input := Input{ID: c.Param("id")}
+	if err := input.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.uc.Execute(c.Request.Context(), input)
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.Err{{.PascalEntity}}NotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "{{.EntityName}} not found"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		}
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}

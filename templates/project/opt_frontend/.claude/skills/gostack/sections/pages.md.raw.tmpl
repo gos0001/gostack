@@ -1,0 +1,114 @@
+# SSR pages, views, HTMX
+
+## A page is one package
+
+Everything a page needs lives in one directory, in `package page`:
+
+```
+internal/web/pages/posts/_post_id/
+├── page.go      Handler — reads params, calls the usecase, renders
+├── usecase.go   Usecase — gathers the data this page shows
+├── dto.go       Input (route params), Output (the view model)
+└── wire.go      var Set = wire.NewSet(New, NewUsecase)
+```
+
+The handler holds `uc *Usecase` directly, with no import, because they are the
+same package. Two constructors, distinct names: `New` returns the handler,
+`NewUsecase` returns the usecase, so wire sees two different types.
+
+**Render logic deliberately does not live in `internal/usecases/`.** A page
+usecase exists to feed one template and has no other caller. Business logic that
+is shared, or exposed over the JSON API, belongs in `internal/usecases/` — and a
+page is free to call it.
+
+## Paths: three forms of the same route
+
+`gostack g page posts/[post_id]` produces:
+
+| Form | Value | Where it appears |
+|---|---|---|
+| Page path | `posts/[post_id]` | what you type; Next.js style |
+| Filesystem | `posts/_post_id` | the directory — Go import paths reject brackets |
+| Gin route | `posts/:post_id` | what gets registered |
+| View name | `posts/post_id` | passed to `views.Render` |
+
+The handler reads the parameter by its bare name:
+
+```go
+input := Input{PostId: c.Param("post_id")}
+```
+
+Rename the directory and the handler stops matching. Prefer regenerating.
+
+## Template inheritance
+
+Go's `html/template` has no parent-template mechanism. Inheritance is done by
+parsing the layout, the components and one page into a single template set, then
+executing that set starting at the layout.
+
+```html
+<!-- views/layouts/base.html -->
+{{define "base.html"}}
+<!DOCTYPE html>
+<html>
+<head>{{block "head" .}}{{end}}</head>
+<body>
+  {{template "navbar.html" .}}
+  <main id="main-content">{{block "content" .}}{{end}}</main>
+</body>
+</html>
+{{end}}
+```
+
+```html
+<!-- views/pages/home.html — only overrides the block -->
+{{define "content"}}
+  <h1>{{.Message}}</h1>
+{{end}}
+```
+
+A page file is *only* `define` blocks. Do not add a `{{template "layouts/base.html" .}}`
+line — the engine already starts from the layout.
+
+A page template with no `content` block renders blank, silently: executing a
+template emits only the text outside its definitions.
+
+## HTMX: the same handler serves both
+
+`views.Engine.Render` branches on the request header:
+
+- no `HX-Request` — executes `base.html`, so the browser gets the full page
+- `HX-Request: true` — executes only the `content` block, so HTMX swaps a
+  fragment instead of reloading
+
+That is the whole mechanism. One handler, one template, two shapes of response.
+
+```html
+<button hx-get="/api/v1/counter" hx-target="#count">+</button>
+<span id="count">0</span>
+```
+
+For fragments that are not a whole page, render a component directly:
+
+```go
+func (h *HTTPv1Handler) Counter(c *gin.Context) {
+    out, _ := h.uc.Execute(c.Request.Context(), Input{})
+    h.views.RenderPartial(c, "components/counter", out)
+}
+```
+
+`hx-boost="true"` on a link makes HTMX intercept navigation and swap the target
+element — SPA-like routing with no JavaScript router.
+
+## Dev mode
+
+With `VIEWS_DEV_MODE=true` the engine recompiles templates from disk on every
+request, so a template edit is visible on refresh without restarting. In
+production templates compile once at startup.
+
+## routes.go is generated
+
+`internal/web/routes.go` carries a DO NOT EDIT header and is owned
+by `gostack g page`. It returns a marker type `*Pages` rather than `*gin.Engine`,
+so wire keeps a single binding for the router while still being forced to build
+it — constructing `Pages` is what registers the routes.

@@ -1,0 +1,136 @@
+# <<.ProjectName>>
+
+<<if .WithFrontend>>A fullstack Go service: JSON API plus server-rendered pages driven by HTMX.<<else>>A JSON API service in Go.<<end>>
+Scaffolded by [gostack](https://github.com/gos0001/gostack) — vertical slices, one
+package per use case, wire for dependency injection<<if .WithPostgres>>, sqlc for Postgres<<end>>.
+
+## Quick start
+
+```bash
+make tools            # air, wire<<if .WithPostgres>>, sqlc, migrate<<end>>, golangci-lint
+<<if .WithDocker>>make docker-up        # start <<if .WithPostgres>>postgres<<end>><<if .WithRedis>> redis<<end>>
+<<end>><<if .WithPostgres>>make migrate-up       # apply migrations
+<<end>>make generate         # <<if .WithPostgres>>sqlc, then <<end>>wire
+make dev              # http://localhost:8080
+```
+
+Configuration comes from `.env.development` via envconfig, per package.
+
+## Layout
+
+```
+<<.ProjectName>>/
+├── cmd/                     entrypoint, graceful shutdown, wire graph
+├── internal/
+│   ├── domain/              pure models + sentinel errors, no tags
+│   ├── usecases/            one package per use case, grouped by entity
+│   ├── controller/http_v1/  JSON API routes — routing only
+<<if .WithFrontend>>│   ├── web/                 the whole SSR layer
+│   │   ├── routes.go        SSR routes — GENERATED, do not edit
+│   │   └── pages/           one package per page: handler + usecase + dto
+<<end>><<if .WithPostgres>>│   ├── adapter/postgres/    sqlc queries, generated code, error mapping
+<<end>><<if .WithRedis>>│   ├── adapter/redis/       cache and sessions
+<<end>>├── pkg/                     shared low-level packages, no domain imports
+<<if .WithFrontend>>├── views/  static/          templates and assets
+<<end>><<if .WithPostgres>>├── migrations/  sqlc.yaml
+<<end>>├── .claude/                 the project's Claude skill
+└── gostack.json             feature manifest — committed
+```
+
+## Adding features
+
+| Command | Result |
+|---|---|
+| `gostack g uc users/get_profile` | a use case package — pure business logic |
+| `gostack g api create_order` | a use case plus a JSON handler and its route |
+<<if .WithFrontend>>| `gostack g page posts/[post_id]` | an SSR page: handler, usecase, dto, view, route |
+<<end>>| `gostack g crud users<<if .WithFrontend>> --pages<<end>>` | domain type, five use cases<<if .WithPostgres>>, migration, queries<<end>>, routes |
+
+Use cases nest under a group folder: `gostack g uc users/ban` lands in
+`internal/usecases/users/ban/`. Package names must be globally unique, because
+wire aliases packages by name.
+
+Note that `g uc` deliberately does not add its `Set` to `cmd/wire.go`: wire
+rejects a provider set that nothing consumes. Wire it in when a consumer appears.
+
+## Configuration
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `APP_ADDR` | `:8080` | listen address |
+| `APP_ENV` | `development` | picks the logger format |
+<<if .WithFrontend>>| `VIEWS_DEV_MODE` | `true` | recompile templates on every request |
+| `VIEWS_TEMPLATES_DIR` | `views` | template root |
+| `VIEWS_STATIC_DIR` | `static` | static asset root |
+<<end>><<if .WithPostgres>>| `POSTGRES_DSN` | — | required; connection string |
+<<end>><<if .WithRedis>>| `REDIS_URL` | — | required; e.g. `redis://localhost:6379` |
+<<end>>
+## Make targets
+
+| Target | Does |
+|---|---|
+| `dev` | air hot reload |
+| `build` / `build-prod` | binary into `./bin/app` |
+| `generate` | <<if .WithPostgres>>`sqlc generate` then <<end>>`wire ./cmd/` |
+| `test` | `go test ./... -race` |
+| `lint` | golangci-lint |
+<<if .WithPostgres>>| `migrate-up` / `migrate-down` | apply or roll back one migration |
+| `migrate-create name=add_foo` | new migration pair |
+<<end>><<if .WithDocker>>| `docker-up` / `docker-down` | dependencies via compose |
+<<end>>
+<<if .WithFrontend>>## Views and HTMX
+
+Layouts declare replaceable blocks, pages fill them in:
+
+```html
+<!-- views/layouts/base.html -->
+{{block "content" .}}{{end}}
+
+<!-- views/pages/home.html -->
+{{define "content"}}<h1>{{.Message}}</h1>{{end}}
+```
+
+The engine parses layouts, components and the page into one template set and
+executes it starting at `base.html`.
+
+When a request carries `HX-Request: true`, `views.Engine.Render` executes only
+the `content` block — HTMX swaps that fragment into the page instead of a full
+reload. Plain navigation gets the whole layout. `RenderPartial` renders a single
+component for finer-grained swaps.
+
+A page whose folder is named `[post_id]` becomes the route `/posts/:post_id`;
+on disk the directory is `_post_id`, because Go import paths reject brackets.
+
+<<end>><<if .WithPostgres>>## Database
+
+Queries live in `internal/adapter/postgres/queries/*.sql` and are compiled by
+sqlc into `internal/adapter/postgres/generated/` — never edit that directory,
+and never write raw SQL strings in Go.
+
+The order matters: write the migration, apply it, regenerate. `make generate`
+runs sqlc before wire because wire cannot compile the adapter until the
+generated package exists.
+
+The adapter maps storage failures onto domain errors — `pgx.ErrNoRows` becomes
+`domain.ErrNotFound`, a `23505` unique violation becomes `domain.ErrAlreadyExists`
+— so use cases branch on domain errors alone.
+
+<<end>>## Architecture
+
+One package per use case, with a single `Execute`. Domain types are the contract
+between layers. Adapter interfaces are declared in the use case that needs them,
+listing only the methods it uses. Controllers route and nothing else. Handlers
+answer through `pkg/http_server`, so every response is `{"data":...}` or
+`{"error":...}`. `pkg/` never imports `internal/domain`. Config is per package.
+
+The full contract lives in `.claude/skills/gostack/SKILL.md`.
+
+## Generated files
+
+Do not edit by hand:
+
+- `cmd/wire_gen.go` — `wire ./cmd/`
+- the `// gostack:` marker comments — the CLI splices code at them
+<<if .WithFrontend>>- `internal/web/routes.go` — `gostack g page`
+<<end>><<if .WithPostgres>>- `internal/adapter/postgres/generated/` — `sqlc generate`
+<<end>>

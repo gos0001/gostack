@@ -1,0 +1,19 @@
+package {{.PackageName}}
+
+import (
+	"time"
+
+	"github.com/kelseyhightower/envconfig"
+)
+
+// Config gates this worker. Disabled by default: a background loop must be
+// switched on deliberately, per environment.
+type Config struct {
+	Enabled  bool          `envconfig:"{{.FeatureName | toUpper}}_ENABLED"  default:"false"`
+	Interval time.Duration `envconfig:"{{.FeatureName | toUpper}}_INTERVAL" default:"1m"`
+}
+
+func LoadConfig() (Config, error) {
+	var cfg Config
+	return cfg, envconfig.Process("", &cfg)
+}

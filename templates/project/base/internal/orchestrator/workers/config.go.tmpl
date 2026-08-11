@@ -1,0 +1,18 @@
+package workers
+
+import (
+	"time"
+
+	"github.com/kelseyhightower/envconfig"
+)
+
+type Config struct {
+	// ShutdownTimeout is how long Stop waits for workers to return after their
+	// context is cancelled. Past it they are abandoned and the process exits.
+	ShutdownTimeout time.Duration `envconfig:"WORKERS_SHUTDOWN_TIMEOUT" default:"15s"`
+}
+
+func LoadConfig() (Config, error) {
+	var cfg Config
+	return cfg, envconfig.Process("", &cfg)
+}

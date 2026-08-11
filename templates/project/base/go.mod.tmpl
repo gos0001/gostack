@@ -1,0 +1,18 @@
+module {{.ModulePath}}
+
+go 1.22
+
+require (
+	github.com/gin-gonic/gin v1.10.0
+	github.com/google/wire v0.6.0
+	github.com/kelseyhightower/envconfig v1.4.0
+	go.uber.org/zap v1.27.0
+{{- if .WithPostgres}}
+	github.com/jackc/pgx/v5 v5.7.1
+	// sqlc emits uuid.UUID for UUID columns.
+	github.com/google/uuid v1.6.0
+{{- end}}
+{{- if .WithRedis}}
+	github.com/redis/go-redis/v9 v9.7.0
+{{- end}}
+)

@@ -1,0 +1,26 @@
+package {{.PackageName}}
+
+import (
+	"context"
+
+	postgresadapter "{{.ModulePath}}/internal/adapter/postgres"
+	"{{.ModulePath}}/internal/domain"
+)
+
+// Postgres is the narrow slice of the adapter this use case needs.
+type Postgres interface {
+	// Update{{.PascalEntity}}(ctx context.Context, e domain.{{.PascalEntity}}) (domain.{{.PascalEntity}}, error)
+}
+
+type Usecase struct {
+	postgres Postgres
+}
+
+func New(pg *postgresadapter.Adapter) *Usecase {
+	return &Usecase{postgres: pg}
+}
+
+func (uc *Usecase) Execute(ctx context.Context, input Input) (Output, error) {
+	// TODO: uc.postgres.Update{{.PascalEntity}}(ctx, entity)
+	return Output{}, domain.Err{{.PascalEntity}}NotFound
+}
