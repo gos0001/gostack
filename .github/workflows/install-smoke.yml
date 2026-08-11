@@ -37,7 +37,10 @@ jobs:
           curl -fsSL "https://go.dev/dl/${ver}.linux-${arch}.tar.gz" -o /tmp/go.tgz
           tar -C /usr/local -xzf /tmp/go.tgz
           echo "/usr/local/go/bin" >> "$GITHUB_PATH"
-          echo "/root/go/bin" >> "$GITHUB_PATH"
+          # Ask the toolchain where it installs rather than assuming ~/go:
+          # container jobs run with HOME=/github/home, not /root, so a
+          # hardcoded path leaves the installed gostack off PATH.
+          echo "$(PATH=/usr/local/go/bin:$PATH go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: The README one-liner
         run: |

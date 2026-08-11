@@ -129,6 +129,7 @@ if [ "$on_path" -eq 0 ] && [ "$NO_MODIFY_PATH" != "1" ]; then
 	case "$(basename "${SHELL:-}")" in
 	zsh)
 		rc="$HOME/.zshrc"
+		# shellcheck disable=SC2016  # $PATH must reach the rc file unexpanded
 		rc_line=$(printf 'export PATH="%s:$PATH"' "$bindir")
 		;;
 	bash)
@@ -138,6 +139,7 @@ if [ "$on_path" -eq 0 ] && [ "$NO_MODIFY_PATH" != "1" ]; then
 		else
 			rc="$HOME/.bashrc"
 		fi
+		# shellcheck disable=SC2016  # $PATH must reach the rc file unexpanded
 		rc_line=$(printf 'export PATH="%s:$PATH"' "$bindir")
 		;;
 	fish)
@@ -200,5 +202,6 @@ else
 		printf 'Could not tell which shell config to edit (SHELL=%s).\n' "${SHELL:-unset}"
 	fi
 	printf '\nAdd this to your shell config, then reopen the terminal:\n\n'
+	# shellcheck disable=SC2016  # printing the line for the user to copy, not running it
 	printf '  %sexport PATH="%s:$PATH"%s\n' "$BOLD" "$bindir" "$RESET"
 fi
