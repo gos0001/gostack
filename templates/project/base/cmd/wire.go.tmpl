@@ -7,7 +7,7 @@ import (
 
 	"{{.ModulePath}}/internal/controller/http_v1"
 	"{{.ModulePath}}/internal/orchestrator/bootstrap"
-	"{{.ModulePath}}/internal/orchestrator/workers"
+	"{{.ModulePath}}/internal/orchestrator/cron"
 	"{{.ModulePath}}/pkg/logger"
 {{- if .WithPostgres}}
 	pkgpostgres "{{.ModulePath}}/pkg/postgres"
@@ -40,7 +40,7 @@ func InitializeApp() (*App, error) {
 {{- end}}
 		http_v1.Set,
 		bootstrap.Set,
-		workers.Set,
+		cron.Set,
 		// gostack:providers
 		NewApp,
 	)

@@ -1,0 +1,34 @@
+package {{.PackageName}}
+
+import (
+	"context"
+	"time"
+
+	"go.uber.org/zap"
+)
+
+// CronHandler is this use case's caller for the cron orchestrator — one handler
+// file per caller, named after the caller, exactly like http_v1.go.
+type CronHandler struct {
+	logger *zap.SugaredLogger
+	cfg    Config
+	uc     *Usecase
+}
+
+func NewCron(logger *zap.SugaredLogger, cfg Config, uc *Usecase) *CronHandler {
+	return &CronHandler{logger: logger, cfg: cfg, uc: uc}
+}
+
+func (h *CronHandler) Name() string { return "{{.FeatureName}}" }
+
+// Interval is the schedule. Zero keeps the job unscheduled — the orchestrator
+// reads this once at startup.
+func (h *CronHandler) Interval() time.Duration { return h.cfg.Interval }
+
+// CronRun does the work once. The orchestrator owns the loop, so this returning
+// an error costs one run, not the schedule.
+func (h *CronHandler) CronRun(ctx context.Context) error {
+	// TODO: fill Input from h.cfg
+	_, err := h.uc.Execute(ctx, Input{})
+	return err
+}

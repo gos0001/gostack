@@ -114,14 +114,14 @@ jobs:
           test -f .gitignore
           test -f gostack.json
           test -f internal/orchestrator/bootstrap/bootstrap.go
-          test -f internal/orchestrator/workers/workers.go
+          test -f internal/orchestrator/cron/cron.go
 
       - name: Generators
         working-directory: ${{ runner.temp }}/app
         run: |
           G="$RUNNER_TEMP/gostack"
           "$G" g uc seed_super_admin --orchestrator bootstrap
-          "$G" g uc outbox_drain --orchestrator workers
+          "$G" g uc outbox_drain --orchestrator cron
           "$G" g uc plain_thing
           "$G" g api create_order
           "$G" g crud users ${{ matrix.frontend == 'true' && '--pages' || '' }}
@@ -158,8 +158,8 @@ jobs:
           fi
           grep -q 'b.tasks = append(b.tasks, seed_super_adminB)' \
             internal/orchestrator/bootstrap/bootstrap.go
-          grep -q 'w.workers = append(w.workers, outbox_drainW)' \
-            internal/orchestrator/workers/workers.go
+          grep -q 'c.jobs = append(c.jobs, outbox_drainC)' \
+            internal/orchestrator/cron/cron.go
 
       # Every splice is guarded by a strings.Contains check. Re-running a
       # generator must be a no-op, not a second registration that fails to

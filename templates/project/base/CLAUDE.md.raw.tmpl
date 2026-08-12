@@ -20,8 +20,8 @@ Scaffolded by [gostack](https://github.com/gos0001/gostack). Module `<<.ModulePa
   writes the package, its `wire.Set` and its route consistently.
 - Every *caller* of a use case gets its own handler file named after it, all
   calling one `Execute`: `http_v1.go` for HTTP, `bootstrap.go` for startup,
-  `workers.go` for background loops. Generate the latter two with
-  `gostack g uc <name> --orchestrator bootstrap|workers`.
+  `cron.go` for scheduled work. Generate the latter two with
+  `gostack g uc <name> --orchestrator bootstrap|cron`.
 - After any constructor change, re-run `wire ./cmd/`.
 <<if .WithPostgres>>- After editing `internal/adapter/postgres/queries/*.sql`, run `sqlc generate`
   **before** `wire` — wire cannot compile the adapter until `generated/` exists.

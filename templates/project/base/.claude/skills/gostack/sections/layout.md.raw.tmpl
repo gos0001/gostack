@@ -33,7 +33,7 @@ If something in `pkg/` needs a domain type, it is an adapter, not a pkg.
 <<end>>
 **Machine-edited — yours, but the CLI splices into it.**
 `cmd/wire.go`, `internal/controller/http_v1/controller.go` and
-`internal/orchestrator/*/{bootstrap,workers}.go` are normal files you may edit,
+`internal/orchestrator/*/{bootstrap,cron}.go` are normal files you may edit,
 but they carry marker comments the generators insert at:
 
 ```go
@@ -53,7 +53,7 @@ cmd/                        entrypoint; graceful shutdown lives in app.go
 internal/domain/            models + sentinel errors; no tags, no imports out
 internal/usecases/          business logic, one package per use case
 internal/controller/http_v1 JSON routes; routing only
-internal/orchestrator/      non-network callers: bootstrap/ and workers/
+internal/orchestrator/      non-network callers: bootstrap/ and cron/
 <<if .WithFrontend>>internal/web/               the whole SSR layer
 internal/web/routes.go      SSR routes; GENERATED
 internal/web/pages/         one package per page; handler + usecase together

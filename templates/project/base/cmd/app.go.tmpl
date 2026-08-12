@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"{{.ModulePath}}/internal/orchestrator/bootstrap"
-	"{{.ModulePath}}/internal/orchestrator/workers"
+	"{{.ModulePath}}/internal/orchestrator/cron"
 {{- if .WithFrontend}}
 	"{{.ModulePath}}/internal/web"
 {{- end}}
@@ -26,7 +26,7 @@ type App struct {
 	router     *gin.Engine
 	httpServer *http.Server
 	bootstrap  *bootstrap.Bootstrap
-	workers    *workers.Workers
+	cron       *cron.Cron
 {{- if .WithPostgres}}
 	pg *pkgpostgres.Pool
 {{- end}}
@@ -40,7 +40,7 @@ func NewApp(
 	router *gin.Engine,
 	cfg Config,
 	boot *bootstrap.Bootstrap,
-	wrk *workers.Workers,
+	cj *cron.Cron,
 {{- if .WithFrontend}}
 	// Taken purely so wire builds it — constructing Pages is what registers
 	// the SSR page routes on the shared router.
@@ -61,7 +61,7 @@ func NewApp(
 			Handler: router,
 		},
 		bootstrap: boot,
-		workers:   wrk,
+		cron:      cj,
 {{- if .WithPostgres}}
 		pg: pg,
 {{- end}}
@@ -81,7 +81,7 @@ func (a *App) Run() {
 		a.logger.Fatalw("bootstrap failed", "error", err)
 	}
 
-	a.workers.Start(ctx)
+	a.cron.Start(ctx)
 
 	a.logger.Infow("starting server", "addr", a.httpServer.Addr)
 {{- if .WithFrontend}}
@@ -104,8 +104,8 @@ func (a *App) Run() {
 			a.logger.Errorw("shutdown error", "error", err)
 		}
 
-		// Workers next: they hold connections from the pools closed below.
-		a.workers.Stop()
+		// Cron next: in-flight jobs hold connections from the pools closed below.
+		a.cron.Stop()
 {{- if .WithPostgres}}
 		a.pg.Close()
 {{- end}}

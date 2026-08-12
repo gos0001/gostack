@@ -110,13 +110,13 @@ controller returns a marker type `*pages.Pages` rather than a second `*gin.Engin
 
 ### Orchestrators
 
-`internal/orchestrator/{bootstrap,workers}/` in a generated project are callers of
+`internal/orchestrator/{bootstrap,cron}/` in a generated project are callers of
 use cases that are not the network — the lifecycle counterpart of
 `internal/controller/http_v1`. Both ship in `base/`, so every project has them
 regardless of feature flags.
 
 They resolve the wire constraints above by being **aggregators**: `NewApp` takes a
-`*bootstrap.Bootstrap` and a `*workers.Workers` from the very first build, so both
+`*bootstrap.Bootstrap` and a `*cron.Cron` from the very first build, so both
 sets are consumed even with zero tasks registered, and each returns its own
 distinct type. That is what makes `g uc --orchestrator` the one form of `g uc`
 that may call `AppendToWireBuild` — the consumer already exists.
@@ -135,6 +135,19 @@ The generated handler templates render **over** `templates/usecase/` into the sa
 directory, deliberately overwriting `wire.go` with a `Set` that includes the
 handler constructor. Same last-writer-wins layering as `ProjectLayers`, applied to
 a feature generator.
+
+The two orchestrators differ in how a task is switched on — `<NAME>_ENABLED` for
+bootstrap, `<NAME>_INTERVAL` for cron — so `orchestratorSpec.enableFmt` carries
+that string and `OrchestratorEnableHint` formats the line the CLI prints. Anything
+that varies per orchestrator belongs in that table, never in a branch inside
+`generate_uc.go`.
+
+Cron owns its loop rather than each handler owning a ticker: `CronRun(ctx)` runs
+once, so a failed run costs a tick instead of the schedule, and one goroutine per
+job makes overlapping runs impossible without a lock. A job's interval is also its
+enable flag, because zero is the value `time.NewTicker` panics on — the one-knob
+design makes "enabled but unscheduled" unrepresentable rather than a runtime
+crash.
 
 ### Path forms for dynamic pages
 

@@ -91,6 +91,7 @@ type orchestratorSpec struct {
 	handlerType string // handler type exported by the use case package
 	paramSuffix string // keeps the parameter name distinct from the package alias
 	appendFmt   string // registration line; the verb takes the parameter name
+	enableFmt   string // how the user switches it on; the verb takes the upper-cased feature name
 }
 
 var orchestratorSpecs = map[string]orchestratorSpec{
@@ -99,13 +100,29 @@ var orchestratorSpecs = map[string]orchestratorSpec{
 		handlerType: "BootstrapHandler",
 		paramSuffix: "B",
 		appendFmt:   "\tb.tasks = append(b.tasks, %s)",
+		enableFmt:   "%s_ENABLED=true",
 	},
-	"workers": {
-		pkg:         "workers",
-		handlerType: "WorkersHandler",
-		paramSuffix: "W",
-		appendFmt:   "\tw.workers = append(w.workers, %s)",
+	"cron": {
+		pkg:         "cron",
+		handlerType: "CronHandler",
+		paramSuffix: "C",
+		appendFmt:   "\tc.jobs = append(c.jobs, %s)",
+		// A cron job has no separate enable flag: the interval is the switch,
+		// and zero is off.
+		enableFmt: "%s_INTERVAL=30s",
 	},
+}
+
+// OrchestratorEnableHint returns the environment assignment that switches a
+// generated handler on, for the line the CLI prints after generating it. The
+// two orchestrators differ — bootstrap has a bool, cron has an interval — so
+// this stays in the table rather than becoming a branch in the command.
+func OrchestratorEnableHint(orchestrator, featureName string) string {
+	spec, ok := orchestratorSpecs[orchestrator]
+	if !ok {
+		return ""
+	}
+	return fmt.Sprintf(spec.enableFmt, strings.ToUpper(featureName))
 }
 
 // OrchestratorNames returns the orchestrators a use case can register with,

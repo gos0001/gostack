@@ -58,9 +58,9 @@ does the same, which is why *that* form of `g uc` may touch `cmd/wire.go`.
 The same applies to adapters. `internal/adapter/postgres` enters the graph only
 when the first `gostack g crud` creates a use case that needs it.
 
-`bootstrap.Set` and `workers.Set` are the exception that proves the rule: both
+`bootstrap.Set` and `cron.Set` are the exception that proves the rule: both
 are in `wire.Build` from the first build, with no tasks registered, because
-`NewApp` takes a `*bootstrap.Bootstrap` and a `*workers.Workers`. That is what
+`NewApp` takes a `*bootstrap.Bootstrap` and a `*cron.Cron`. That is what
 makes it safe for a generator to splice a task into them later — the consumer is
 already there.
 

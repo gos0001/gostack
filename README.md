@@ -116,7 +116,7 @@ That file is meant to be committed.
 | Command | Creates | Also mutates |
 |---|---|---|
 | `gostack g uc <name>` | `internal/usecases/[<group>/]<name>/` — usecase, dto, wire | nothing |
-| `gostack g uc <name> --orchestrator bootstrap\|workers` | the same plus `config.go` and a `bootstrap.go` / `workers.go` handler | `cmd/wire.go`, `internal/orchestrator/<name>/<name>.go` |
+| `gostack g uc <name> --orchestrator bootstrap\|cron` | the same plus `config.go` and a `bootstrap.go` / `cron.go` handler | `cmd/wire.go`, `internal/orchestrator/<name>/<name>.go` |
 | `gostack g api <name>` | the same plus `http_v1.go` | `cmd/wire.go`, `controller.go` (registers the route) |
 | `gostack g page <path>` | `internal/web/pages/<path>/` — page, usecase, dto, wire + a view | `cmd/wire.go`, `internal/web/routes.go` |
 | `gostack g crud <plural>` | domain file, five grouped usecases, migration pair, queries | `cmd/wire.go`, `controller.go` |
@@ -136,7 +136,7 @@ does `g uc --orchestrator`, which is why that one form of `g uc` *does* edit
 
 **Orchestrators.** `internal/orchestrator/` holds callers of use cases that are
 not the network — `bootstrap/` runs tasks once at startup before the listener
-opens, `workers/` runs background goroutines for the life of the process. Every
+opens, `cron/` runs jobs on an interval for the life of the process. Every
 project gets both. A use case reached that way grows a handler file named after
 its caller, exactly as an HTTP one grows `http_v1.go`:
 
@@ -148,6 +148,12 @@ internal/usecases/seed_super_admin/
 └── wire.go
 ```
 
+The cron orchestrator owns the loop, so a job's `CronRun(ctx)` does the work once
+and a failure costs one tick rather than the schedule. Its interval *is* its
+on-switch — zero is off, and zero is also what `time.NewTicker` panics on, so
+"enabled but unscheduled" cannot be configured. A job that must also run at boot
+adds a `bootstrap.go` beside its `cron.go`; both call the same `Execute`.
+
 ## What gets generated
 
 ```
@@ -157,7 +163,7 @@ blog-app/
 │   ├── domain/              pure models + sentinel errors
 │   ├── usecases/            one package per use case, grouped by entity
 │   ├── controller/http_v1/  JSON API routes
-│   ├── orchestrator/        bootstrap/ and workers/ — non-network callers
+│   ├── orchestrator/        bootstrap/ and cron/ — non-network callers
 │   ├── web/                 the whole SSR layer
 │   │   ├── routes.go        SSR routes — generated, do not edit
 │   │   └── pages/           one package per page, all `package page`

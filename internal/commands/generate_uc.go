@@ -17,7 +17,8 @@ var generateUCCmd = &cobra.Command{
 	Short: "Generate a use case package (business logic only)",
 	Example: "gostack g uc get_user\n" +
 		"  gostack g uc users/get_profile\n" +
-		"  gostack g uc seed_super_admin --orchestrator bootstrap",
+		"  gostack g uc seed_super_admin --orchestrator bootstrap\n" +
+		"  gostack g uc outbox_drain --orchestrator cron",
 	Args: cobra.ExactArgs(1),
 	RunE: runGenerateUC,
 }
@@ -90,7 +91,7 @@ func runGenerateUC(cmd *cobra.Command, args []string) error {
 	scaffold.PostGenFeature(".")
 
 	fmt.Printf("Done. Edit %s/usecase.go to add your logic.\n", dest)
-	fmt.Printf("Registered with the %s orchestrator — it is off until %s_ENABLED=true.\n",
-		ucOrchestrator, strings.ToUpper(name))
+	fmt.Printf("Registered with the %s orchestrator — it is off until %s.\n",
+		ucOrchestrator, scaffold.OrchestratorEnableHint(ucOrchestrator, name))
 	return nil
 }

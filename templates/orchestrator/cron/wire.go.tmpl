@@ -2,4 +2,4 @@ package {{.PackageName}}
 
 import "github.com/google/wire"
 
-var Set = wire.NewSet(LoadConfig, New, NewWorkers)
+var Set = wire.NewSet(LoadConfig, New, NewCron)

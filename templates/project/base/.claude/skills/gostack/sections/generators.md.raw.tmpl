@@ -20,15 +20,16 @@ nothing consumes, so registering a bare use case would break the build. Add
 
 ```
 gostack g uc seed_super_admin --orchestrator bootstrap    → runs once at startup
-gostack g uc outbox_drain     --orchestrator workers      → runs as a background loop
+gostack g uc outbox_drain     --orchestrator cron         → runs on an interval
 ```
 
 Adds `config.go` and a handler file named after the orchestrator
-(`bootstrap.go` / `workers.go`) to the four above. With this flag `g uc` **does**
+(`bootstrap.go` / `cron.go`) to the four above. With this flag `g uc` **does**
 mutate `cmd/wire.go`, plus `internal/orchestrator/<name>/<name>.go` — the
 orchestrator becomes the consumer, so the set is no longer unused.
 
-The task is off until `<NAME>_ENABLED=true`. See `@sections/orchestrators.md`.
+Both are off until configured — `<NAME>_ENABLED=true` for bootstrap,
+`<NAME>_INTERVAL=30s` for cron. See `@sections/orchestrators.md`.
 
 ## g api — a use case plus a JSON endpoint
 

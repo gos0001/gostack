@@ -6,7 +6,7 @@ description: >
   and generated files the CLI owns. ALWAYS active in this repository — read
   before adding or editing any Go file. Auto-triggers on: "gostack", "usecase",
   "use case", "endpoint", "handler", "wire", "generator", "orchestrator",
-  "bootstrap", "worker", "background job",<<if .WithFrontend>> "page", "htmx", "view", "template",<<end>><<if .WithPostgres>> "sqlc", "migration", "query", "crud",<<end>> /gostack, or any edit under cmd/, internal/, or pkg/.
+  "bootstrap", "cron", "scheduled job",<<if .WithFrontend>> "page", "htmx", "view", "template",<<end>><<if .WithPostgres>> "sqlc", "migration", "query", "crud",<<end>> /gostack, or any edit under cmd/, internal/, or pkg/.
 ---
 
 # <<.ProjectName>>
@@ -17,7 +17,7 @@ description: >
 
 ## Core Rules (always apply)
 
-1. **One use case = one package** under `internal/usecases/[<group>/]<name>/`, with a single `Execute(ctx, in)`. Every *caller* gets its own handler file named after it — `http_v1.go`, `bootstrap.go`, `workers.go` — but they all call that one `Execute`.
+1. **One use case = one package** under `internal/usecases/[<group>/]<name>/`, with a single `Execute(ctx, in)`. Every *caller* gets its own handler file named after it — `http_v1.go`, `bootstrap.go`, `cron.go` — but they all call that one `Execute`.
 2. **Package names are globally unique.** wire aliases by package name, so it is `user_get`, never `get`. The CLI refuses colliding names.
 3. **Prefer the generator over hand-writing.** `gostack g uc|api|page|crud` writes the package, its `wire.Set` and its route in one consistent step.
 4. **A provider set must be consumed.** `gostack g uc` deliberately leaves `cmd/wire.go` alone — wire rejects a set nothing uses. Add the `Set` when a consumer appears.
@@ -44,7 +44,7 @@ description: >
 │   ├── domain/              pure models + sentinel errors
 │   ├── usecases/            one package per use case, grouped by entity
 │   ├── controller/http_v1/  JSON API routes
-│   ├── orchestrator/        non-network callers — bootstrap/, workers/
+│   ├── orchestrator/        non-network callers — bootstrap/, cron/
 <<if .WithFrontend>>│   ├── web/                 the whole SSR layer
 │   │   ├── routes.go        SSR page routes — GENERATED
 │   │   └── pages/           one package per SSR page, all `package page`
@@ -66,7 +66,7 @@ Read these when working on each layer:
 
 - Project layout + who owns which file: `@sections/layout.md`
 - Use case packages, the unit of work: `@sections/usecases.md`
-- Startup tasks and background workers: `@sections/orchestrators.md`
+- Startup tasks and scheduled jobs: `@sections/orchestrators.md`
 - Wire DI contract: `@sections/wire.md`
 - Domain models, errors, HTTP responses: `@sections/domain-errors.md`
 - gostack CLI generators: `@sections/generators.md`

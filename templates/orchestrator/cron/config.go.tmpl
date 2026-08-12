@@ -1,0 +1,19 @@
+package {{.PackageName}}
+
+import (
+	"time"
+
+	"github.com/kelseyhightower/envconfig"
+)
+
+// Config schedules this job. One knob, not two: a zero interval is what keeps
+// the job off, and it is also the value time.NewTicker panics on — so
+// "enabled but unscheduled" cannot be expressed.
+type Config struct {
+	Interval time.Duration `envconfig:"{{.FeatureName | toUpper}}_INTERVAL" default:"0s"`
+}
+
+func LoadConfig() (Config, error) {
+	var cfg Config
+	return cfg, envconfig.Process("", &cfg)
+}
