@@ -9,6 +9,23 @@ releases.
 
 ## [Unreleased]
 
+### Added
+
+- Unit tests for the pure functions in `internal/scaffold` — name derivation,
+  the four page path forms, validation, and the splice helpers that inject code
+  into an existing project. Each `Append*` is now checked for idempotence in a
+  second rather than only by the CI generation suite. `go test ./... -race` runs
+  in CI.
+
+### Fixed
+
+- The CRUD singulariser stripped a trailing `es` unconditionally, so
+  `gostack g crud notes` produced `domain.Not` and `ErrNotNotFound`, and
+  `images` produced `imag`. `es` is now only stripped after `s`, `x`, `z`, `ch`
+  or `sh`, which keeps `boxes` → `box` and `categories` → `category` while
+  fixing `notes` → `note`. Irregular plurals are still not handled and still
+  need a look before committing.
+
 ## [0.2.0] - 2026-08-12
 
 ### Changed

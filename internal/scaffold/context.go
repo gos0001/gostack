@@ -240,19 +240,37 @@ func PageDir(fsPagePath string) string {
 func NewCRUDContext(project TemplateContext, entityPlural string) TemplateContext {
 	ctx := project
 	ctx.EntityPlural = entityPlural
-	// Strip trailing 's' for simple singularisation ("users" → "user")
-	entity := entityPlural
-	if strings.HasSuffix(entity, "ies") {
-		entity = entity[:len(entity)-3] + "y"
-	} else if strings.HasSuffix(entity, "es") {
-		entity = entity[:len(entity)-2]
-	} else if strings.HasSuffix(entity, "s") {
-		entity = entity[:len(entity)-1]
-	}
-	ctx.EntityName = entity
-	ctx.PascalEntity = toPascal(entity)
+	ctx.EntityName = singularise(entityPlural)
+	ctx.PascalEntity = toPascal(ctx.EntityName)
 	// CRUD packages are grouped under a folder named after the entity.
 	ctx.GroupPath = entityPlural
 	ctx.HasAPI = true
 	return ctx
+}
+
+// esPluralStems are the endings that take "-es" rather than a bare "-s":
+// boxes, matches, dishes, buses, quizzes. Everything else keeps the letter
+// before the final "s" — stripping "es" unconditionally turned "notes" into
+// "not" and "images" into "imag".
+var esPluralStems = []string{"s", "x", "z", "ch", "sh"}
+
+// singularise is deliberately naive: it covers the regular English plurals and
+// nothing else. Irregulars ("people", "children") come out wrong and are meant
+// to be corrected by hand — the generated domain file is one line to edit, and
+// the skill tells the user to check it.
+func singularise(plural string) string {
+	if stem, ok := strings.CutSuffix(plural, "ies"); ok && stem != "" {
+		return stem + "y"
+	}
+	if stem, ok := strings.CutSuffix(plural, "es"); ok {
+		for _, end := range esPluralStems {
+			if strings.HasSuffix(stem, end) {
+				return stem
+			}
+		}
+	}
+	if stem, ok := strings.CutSuffix(plural, "s"); ok && stem != "" {
+		return stem
+	}
+	return plural
 }

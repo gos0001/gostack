@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   check:
-    name: vet, fmt, tidy, shellcheck
+    name: vet, fmt, test, tidy, shellcheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +39,12 @@ jobs:
 
       - name: go vet
         run: go vet ./...
+
+      # Unit tests cover the pure functions: name derivation, the four page
+      # path forms, and the splice helpers that inject code into an existing
+      # project. The generation e2e below covers everything they cannot.
+      - name: go test
+        run: go test ./... -race
 
       # An untidy go.mod/go.sum builds fine locally and fails for anyone running
       # `go install ...@latest`, because the proxy verifies against the module's

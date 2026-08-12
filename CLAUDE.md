@@ -17,13 +17,15 @@ what the templates *produce*, not how to organise code here.
 ## Commands
 
 ```bash
-go build ./... && go vet ./...
+go build ./... && go vet ./... && go test ./... -race
 go build -o /tmp/gostack ./cmd/gostack
 ```
 
-There is no test suite. The working check is to generate projects of each shape and
-build them — which is exactly what `.github/workflows/ci.yml` does on every push, across
-both project shapes:
+`go test ./... -race` covers the pure functions in `internal/scaffold` — name derivation,
+the four page path forms, and the splice helpers, including that each `Append*` is
+idempotent. Everything else is only meaningful against a real generated project, so the
+working check is to generate one of each shape and build it — which is exactly what
+`.github/workflows/ci.yml` does on every push:
 
 ```bash
 cd $(mktemp -d)
