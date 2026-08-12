@@ -19,7 +19,7 @@ jobs:
     name: vet, fmt, test, tidy, shellcheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # go-version-file tracks the go directive in go.mod, so bumping the
       # toolchain requirement is a one-line change there and not here too.
@@ -76,7 +76,7 @@ jobs:
             flags: --api-only
             frontend: "false"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v5
         with:
