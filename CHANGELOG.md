@@ -19,6 +19,11 @@ releases.
 
 ### Fixed
 
+- **Generated handlers now respond through `pkg/http_server`.** The generated
+  `SKILL.md` rule 8 says ⛔ never call `c.JSON` directly, and every generated
+  handler did exactly that — while `pkg/http_server` was shipped into every
+  project and imported by nothing. The `{"data":…}` / `{"error":…}` envelope is
+  the API contract, so a handler that bypassed it silently broke it.
 - The CRUD singulariser stripped a trailing `es` unconditionally, so
   `gostack g crud notes` produced `domain.Not` and `ErrNotNotFound`, and
   `images` produced `imag`. `es` is now only stripped after `s`, `x`, `z`, `ch`

@@ -2,11 +2,11 @@ package {{.PackageName}}
 
 import (
 	"errors"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	"{{.ModulePath}}/internal/domain"
+	httpserver "{{.ModulePath}}/pkg/http_server"
 )
 
 type HTTPv1Handler struct {
@@ -20,7 +20,7 @@ func NewHTTPv1(uc *Usecase) *HTTPv1Handler {
 func (h *HTTPv1Handler) Handle(c *gin.Context) {
 	input := Input{ID: c.Param("id")}
 	if err := input.Validate(); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		httpserver.BadRequest(c, err.Error())
 		return
 	}
 
@@ -28,12 +28,12 @@ func (h *HTTPv1Handler) Handle(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, domain.Err{{.PascalEntity}}NotFound):
-			c.JSON(http.StatusNotFound, gin.H{"error": "{{.EntityName}} not found"})
+			httpserver.NotFound(c, "{{.EntityName}} not found")
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+			httpserver.InternalServerError(c, "internal server error")
 		}
 		return
 	}
 
-	c.Status(http.StatusNoContent)
+	httpserver.NoContent(c)
 }

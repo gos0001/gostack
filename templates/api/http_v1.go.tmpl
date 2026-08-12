@@ -1,9 +1,9 @@
 package {{.PackageName}}
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
+
+	httpserver "{{.ModulePath}}/pkg/http_server"
 )
 
 type HTTPv1Handler struct {
@@ -17,19 +17,23 @@ func NewHTTPv1(uc *Usecase) *HTTPv1Handler {
 func (h *HTTPv1Handler) Handle(c *gin.Context) {
 	var input Input
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		httpserver.BadRequest(c, err.Error())
 		return
 	}
 	if err := input.Validate(); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		httpserver.BadRequest(c, err.Error())
 		return
 	}
 
 	out, err := h.uc.Execute(c.Request.Context(), input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		// TODO: map this use case's domain errors to statuses before the
+		// fallthrough, with a switch on errors.Is. Everything unmapped is a
+		// 500 and must be logged rather than echoed — see
+		// @sections/domain-errors.md.
+		httpserver.InternalServerError(c, "internal server error")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": out})
+	httpserver.OK(c, out)
 }
