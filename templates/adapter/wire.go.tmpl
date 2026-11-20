@@ -1,0 +1,8 @@
+package {{.PackageName}}
+
+import "github.com/google/wire"
+
+// Set is deliberately not in cmd/wire.go yet: wire rejects a provider set
+// nothing consumes. Add it when the first use case takes *Adapter from this
+// package in its constructor.
+var Set = wire.NewSet(New)

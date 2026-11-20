@@ -7,5 +7,5 @@ import "embed"
 // .env.development.tmpl, .gitignore.tmpl, the whole .claude/ skill tree that
 // every generated project ships with, and any page directory named _post_id.
 //
-//go:embed all:project all:usecase all:api all:page all:page_tmpl all:crud all:orchestrator
+//go:embed all:project all:usecase all:api all:page all:page_tmpl all:crud all:orchestrator all:adapter
 var FS embed.FS

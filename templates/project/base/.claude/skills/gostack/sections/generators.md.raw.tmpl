@@ -90,6 +90,21 @@ The singular form is derived naively (`users` → `user`, `categories` →
 column lists, then `make migrate-up && make generate`.
 <<else>>After generating: fill in the domain fields and implement each `Execute`.
 <<end>>
+## g adapter — a stateful in-memory adapter
+
+```
+gostack g adapter inmemory      → internal/adapter/inmemory/
+```
+
+Writes `adapter.go` (root `Adapter` + `sync.Mutex`), `example_storage.go`
+(the one-storage-per-file pattern), `wire.go`. Extend it freely — TTL,
+eviction, counters; `example_storage.go` is the template to copy.
+
+**Does not touch `cmd/wire.go`** — same rule as a bare `g uc`: the set has no
+consumer until a use case takes `*inmemory.Adapter`. `postgres` and `redis`
+are reserved: those adapters ship with `gostack new` and have a `pkg/`
+connection layer this shape does not. See `@sections/adapters.md`.
+
 ## Naming rules
 
 Names are `[a-z][a-z0-9_-]*` per segment. A group prefix is a directory:

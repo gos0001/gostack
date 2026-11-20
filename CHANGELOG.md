@@ -9,6 +9,17 @@ releases.
 
 ## [Unreleased]
 
+### Added
+
+- `gostack g adapter <name>` — scaffolds a stateful in-process adapter under
+  `internal/adapter/<name>/`: a root `Adapter` guarded by a mutex, an example
+  storage demonstrating the one-storage-per-file pattern with the domain error
+  contract, and a `wire.Set` that stays out of `cmd/wire.go` until a use case
+  consumes it. `postgres` and `redis` are rejected as names — those adapters
+  ship with `gostack new` flags and have their own `pkg/` connection layer.
+  Generated projects get a new skill section, `adapters.md`, covering the
+  pattern and when to reach for it.
+
 ## [0.3.1] - 2026-08-13
 
 ### Changed

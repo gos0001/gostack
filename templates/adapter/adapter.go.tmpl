@@ -1,0 +1,29 @@
+// Package {{.PackageName}} adapts process-local state to domain types.
+//
+// Rules this package must keep — the same contract postgres and redis follow:
+//   - every method returns domain types and maps storage outcomes to domain
+//     errors (a miss is domain.ErrNotFound, a duplicate is
+//     domain.ErrAlreadyExists), so use cases cannot tell which store they
+//     are talking to
+//   - one storage = one file <name>_storage.go: the struct holding its state
+//     plus the *Adapter methods that operate on it
+//   - all state is touched only under mu; take it per method and never hold
+//     it across a call that can block
+//   - methods take context.Context even when unused, so swapping this adapter
+//     for redis later changes no call site
+package {{.PackageName}}
+
+import "sync"
+
+// Adapter is the root of every storage in this package. Storages are fields,
+// each defined in its own file next to the methods that operate on it.
+type Adapter struct {
+	mu sync.Mutex
+
+	// One field per storage. example ships as a demonstration — replace it.
+	example ExampleStorage
+}
+
+func New() *Adapter {
+	return &Adapter{}
+}

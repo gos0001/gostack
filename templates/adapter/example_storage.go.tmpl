@@ -1,0 +1,42 @@
+package {{.PackageName}}
+
+import (
+	"context"
+
+	"{{.ModulePath}}/internal/domain"
+)
+
+// ExampleStorage is the template for storages you add to this package.
+// Rename or delete it; the shape is what must survive:
+//
+//   - the struct holds state, nothing else
+//   - operations are *Adapter methods in this same file
+//   - state is only touched under a.mu
+//   - outcomes map to domain errors
+//   - ctx is accepted even when unused — a later redis swap then changes no
+//     call site
+//
+// TTL and friends are yours to add here: store an expiresAt time.Time next
+// to the value and treat an expired entry as a miss.
+type ExampleStorage struct {
+	name string
+}
+
+// SaveName stores n, replacing whatever was there.
+func (a *Adapter) SaveName(_ context.Context, n string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.example.name = n
+	return nil
+}
+
+// Name returns the stored name, or domain.ErrNotFound when nothing was saved
+// yet — the same error a postgres or redis adapter returns for a miss.
+func (a *Adapter) Name(_ context.Context) (string, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.example.name == "" {
+		return "", domain.ErrNotFound
+	}
+	return a.example.name, nil
+}

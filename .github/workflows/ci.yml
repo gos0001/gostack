@@ -131,6 +131,7 @@ jobs:
           "$G" g uc plain_thing
           "$G" g api create_order
           "$G" g crud users ${{ matrix.frontend == 'true' && '--pages' || '' }}
+          "$G" g adapter inmemory
           if [ "${{ matrix.frontend }}" = "true" ]; then
             "$G" g page 'posts/[post_id]'
           fi
@@ -162,6 +163,11 @@ jobs:
             echo "a bare 'g uc' package reached cmd/wire.go — wire will reject it"
             exit 1
           fi
+          if grep -q 'inmemory' cmd/wire.go; then
+            echo "a 'g adapter' package reached cmd/wire.go — wire will reject it"
+            exit 1
+          fi
+          test -f internal/adapter/inmemory/example_storage.go
           grep -q 'b.tasks = append(b.tasks, seed_super_adminB)' \
             internal/orchestrator/bootstrap/bootstrap.go
           grep -q 'c.jobs = append(c.jobs, outbox_drainC)' \
@@ -174,6 +180,7 @@ jobs:
         working-directory: ${{ runner.temp }}/app
         run: |
           "$RUNNER_TEMP/gostack" g uc seed_super_admin --orchestrator bootstrap
+          "$RUNNER_TEMP/gostack" g adapter inmemory
           n=$(grep -c 'b.tasks = append' internal/orchestrator/bootstrap/bootstrap.go)
           if [ "$n" -ne 1 ]; then
             echo "expected 1 registration, found $n"

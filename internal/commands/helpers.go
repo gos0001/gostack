@@ -42,23 +42,30 @@ func readProjectContext(dir string) (scaffold.TemplateContext, error) {
 // a different directory. Wire aliases packages by name, so two packages called
 // get_profile in different groups would collide in cmd/wire.go.
 func checkPkgNameFree(ctx scaffold.TemplateContext, dest string) error {
+	return checkWireAliasFree(ctx.PackageName,
+		ctx.ModulePath+"/"+scaffold.UsecasePkgPath(ctx), dest)
+}
+
+// checkWireAliasFree rejects a new package whose name cmd/wire.go already
+// imports under a different path. Wire aliases packages by name, so e.g. a
+// usecase and an adapter sharing a name would collide there.
+func checkWireAliasFree(name, wantPath, dest string) error {
 	data, err := os.ReadFile("cmd/wire.go")
 	if err != nil {
 		return nil // no wire.go yet — nothing to collide with
 	}
 
-	wantPath := ctx.ModulePath + "/" + scaffold.UsecasePkgPath(ctx)
 	for _, line := range strings.Split(string(data), "\n") {
 		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, ctx.PackageName+" \"") {
+		if !strings.HasPrefix(line, name+" \"") {
 			continue
 		}
-		existing := strings.Trim(strings.TrimPrefix(line, ctx.PackageName+" "), `"`)
+		existing := strings.Trim(strings.TrimPrefix(line, name+" "), `"`)
 		if existing != wantPath {
 			return fmt.Errorf(
-				"a usecase package named %q already exists at %s\n"+
+				"a package named %q is already imported in cmd/wire.go as %s\n"+
 					"wire aliases packages by name, so %s would collide with it — pick a different name",
-				ctx.PackageName, existing, dest)
+				name, existing, dest)
 		}
 	}
 	return nil

@@ -1,0 +1,40 @@
+# Adapters
+
+Everything under `internal/adapter/` speaks domain types and domain errors.
+Three shapes:
+
+| Adapter | Ships with | Shape |
+|---|---|---|
+| `postgres/` | `gostack new --postgres` | `pkg/postgres` pool, sqlc queries, `MapError` |
+| `redis/` | `gostack new --redis` | `pkg/redis` client, key prefix, TTLs |
+| any other name | `gostack g adapter <name>` | stateful, in-process, no `pkg/` layer |
+
+## `g adapter` — the stateful shape
+
+`gostack g adapter inmemory` scaffolds a root `Adapter` behind a `sync.Mutex`,
+a `wire.Set`, and `example_storage.go` demonstrating the pattern. Extend it as
+far as you need — TTL, eviction, counters — the rules below are what keep it
+an adapter rather than a stray map:
+
+- **One storage = one file** `<name>_storage.go`: the struct holding its
+  state plus the `*Adapter` methods that operate on it.
+- **State is only touched under `a.mu`.** Lock per method; never hold the
+  lock across anything that can block.
+- **Map outcomes to domain errors.** A miss is `domain.ErrNotFound`, a
+  duplicate is `domain.ErrAlreadyExists` — the same contract postgres's
+  `MapError` gives, so a use case cannot tell which store it is talking to
+  and a later swap to redis or postgres is local to this package.
+- **Take `context.Context` even when unused** — same swap argument.
+- **Restart wipes everything.** Right for caches, rate limiters, counters,
+  dev without docker, stubs before a schema exists. Anything a user would
+  notice losing belongs in Postgres.
+
+TTL is a field, not a framework: store `expiresAt time.Time` next to the
+value and treat an expired entry as a miss.
+
+## Wire
+
+The generated `Set` is deliberately absent from `cmd/wire.go`: wire rejects a
+provider set nothing consumes. Add `<pkg>.Set` to `wire.Build` when the first
+use case takes `*<pkg>.Adapter` in its constructor — the same rule a bare
+`g uc` follows.

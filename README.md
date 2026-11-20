@@ -120,7 +120,8 @@ That file is meant to be committed.
 | `gostack g api <name>` | the same plus `http_v1.go` | `cmd/wire.go`, `controller.go` (registers the route) |
 | `gostack g page <path>` | `internal/web/pages/<path>/` — page, usecase, dto, wire + a view | `cmd/wire.go`, `internal/web/routes.go` |
 | `gostack g crud <plural>` | domain file, five grouped usecases, migration pair, queries | `cmd/wire.go`, `controller.go` |
-| `gostack dev` | — | runs `air`, falls back to `go run ./cmd` |
+| `gostack g adapter <name>` | `internal/adapter/<name>/` — stateful in-memory adapter: root `Adapter` + mutex, example storage, wire Set | nothing |
+| `gostack g dev` | — | runs `air`, falls back to `go run ./cmd` |
 
 Both `g uc` and `g api` accept an optional group: `gostack g uc users/get_profile`
 lands in `internal/usecases/users/get_profile/`.
@@ -132,7 +133,9 @@ nothing consumes, so adding a bare use case to the graph would break the build.
 Its `Set` goes in when a consumer appears. `g api` registers a route in the same
 run for exactly this reason — an unrouted handler would not compile either. So
 does `g uc --orchestrator`, which is why that one form of `g uc` *does* edit
-`cmd/wire.go`: the orchestrator is the consumer.
+`cmd/wire.go`: the orchestrator is the consumer. `g adapter <name>` stays out for
+the same reason — its set is consumed by the first use case that takes
+`*<name>.Adapter`.
 
 **Orchestrators.** `internal/orchestrator/` holds callers of use cases that are
 not the network — `bootstrap/` runs tasks once at startup before the listener
@@ -167,7 +170,7 @@ blog-app/
 │   ├── web/                 the whole SSR layer
 │   │   ├── routes.go        SSR routes — generated, do not edit
 │   │   └── pages/           one package per page, all `package page`
-│   └── adapter/             postgres (sqlc), redis
+│   └── adapter/             postgres (sqlc), redis, `g adapter` stateful
 ├── pkg/                     logger, http_server, views, postgres, redis
 ├── views/  static/          templates and assets
 ├── migrations/  sqlc.yaml

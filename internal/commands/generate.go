@@ -13,4 +13,5 @@ func init() {
 	generateCmd.AddCommand(generatePageCmd)
 	generateCmd.AddCommand(generateAPICmd)
 	generateCmd.AddCommand(generateCRUDCmd)
+	generateCmd.AddCommand(generateAdapterCmd)
 }

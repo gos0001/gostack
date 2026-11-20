@@ -6,7 +6,7 @@ description: >
   and generated files the CLI owns. ALWAYS active in this repository — read
   before adding or editing any Go file. Auto-triggers on: "gostack", "usecase",
   "use case", "endpoint", "handler", "wire", "generator", "orchestrator",
-  "bootstrap", "cron", "scheduled job",<<if .WithFrontend>> "page", "htmx", "view", "template",<<end>><<if .WithPostgres>> "sqlc", "migration", "query", "crud",<<end>> /gostack, or any edit under cmd/, internal/, or pkg/.
+  "bootstrap", "cron", "scheduled job", "adapter", "inmemory", "storage",<<if .WithFrontend>> "page", "htmx", "view", "template",<<end>><<if .WithPostgres>> "sqlc", "migration", "query", "crud",<<end>> /gostack, or any edit under cmd/, internal/, or pkg/.
 ---
 
 # <<.ProjectName>>
@@ -67,7 +67,7 @@ Read these when working on each layer:
 - Project layout + who owns which file: `@sections/layout.md`
 - Use case packages, the unit of work: `@sections/usecases.md`
 - Startup tasks and scheduled jobs: `@sections/orchestrators.md`
-- Wire DI contract: `@sections/wire.md`
+- Adapters — postgres, redis, and `g adapter` storages: `@sections/adapters.md`
 - Domain models, errors, HTTP responses: `@sections/domain-errors.md`
 - gostack CLI generators: `@sections/generators.md`
 - Daily workflow — make, env, dev loop: `@sections/workflow.md`
